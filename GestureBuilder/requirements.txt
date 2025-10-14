@@ -1,0 +1,13 @@
+# ML
+torch
+sklearn
+
+# Data
+pandas
+numpy
+
+# File I/O
+pathlib
+
+# Visualization
+plotly

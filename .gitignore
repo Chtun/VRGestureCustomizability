@@ -2,6 +2,9 @@
 __pycache__/
 *.py[cod]
 *$py.class
+*.vscode
+*.vs
+*.vsconfig
 
 # C extensions
 *.so
@@ -127,3 +130,5 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+Unity_VR_Template/Library
