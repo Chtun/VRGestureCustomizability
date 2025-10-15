@@ -3,15 +3,15 @@ import plotly.graph_objects as go
 from pathlib import Path
 
 # List of file subnames
-file_subnames = ["right_jab-1", "right_jab-2", "right_jab-3", "table_bang-1"]
+file_subnames = ["table_bang-1"] #"right_jab-1", "right_jab-2", "right_jab-3", ]
 
 # Path to output folder
 output_folder = Path("..\\output")
-output_file = output_folder / "hand_animation-multiple.html"
+output_file = output_folder / "hand_animation-multiple-wrist_only.html"
 
 # Colors for each file
-colors_left = ["blue", "green", "purple", "grey"]
-colors_right = ["red", "orange", "pink", "black"]
+colors_left = ["blue"] #, "green", "purple", "grey"]
+colors_right = ["red"] #, "orange", "pink", "black"]
 
 # Scale factor
 scale_factor = 5.0
@@ -31,16 +31,18 @@ for subname in file_subnames:
 
     def extract_joints(row, prefix):
         joints = []
-        root_x = row[f"{prefix}Root_posX"]
-        root_y = row[f"{prefix}Root_posY"]
-        root_z = row[f"{prefix}Root_posZ"]
-        for col in df.columns:
-            if col.startswith(prefix) and col.endswith("_posX") and "Root" not in col:
-                joint_name = col[len(prefix):-5]
-                x = (row[f"{prefix}{joint_name}_posX"] + root_x) * scale_factor
-                y = (row[f"{prefix}{joint_name}_posY"] + root_y) * scale_factor
-                z = (row[f"{prefix}{joint_name}_posZ"] + root_z) * scale_factor
-                joints.append((x, y, z))
+        root_x = row[f"{prefix}Root_posX"] * scale_factor
+        root_y = row[f"{prefix}Root_posY"] * scale_factor
+        root_z = row[f"{prefix}Root_posZ"] * scale_factor
+
+        joints.append((root_x, root_y, root_z))
+        # for col in df.columns:
+        #     if col.startswith(prefix) and col.endswith("_posX") and "Root" not in col:
+        #         joint_name = col[len(prefix):-5]
+        #         x = (row[f"{prefix}{joint_name}_posX"] + root_x) * scale_factor
+        #         y = (row[f"{prefix}{joint_name}_posY"] + root_y) * scale_factor
+        #         z = (row[f"{prefix}{joint_name}_posZ"] + root_z) * scale_factor
+        #         joints.append((x, y, z))
         return joints
 
     left_frames = [extract_joints(df.iloc[i], left_prefix) for i in range(len(df))]

@@ -131,4 +131,7 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-Unity_VR_Template/Library
+Unity_VR_Template/Library/
+Unity_VR_Template/UserSettings/
+Unity_VR_Template/Assets/XR/
+Unity_VR_Template/Temp

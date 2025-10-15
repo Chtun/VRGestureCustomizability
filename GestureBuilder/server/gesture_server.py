@@ -12,7 +12,7 @@ from pathlib import Path
 from GestureBuilder.model.VQ_VAE import VQVAE
 from GestureBuilder.utilities.naming_conventions import get_hand_joint_list
 from GestureBuilder.utilities.sequence_comparison import sequence_distance
-from GestureBuilder.model.hand_dataset import joints_dict_to_tensor
+from GestureBuilder.model.hand_dataset import joints_dict_to_tensor, load_hand_tensors_from_csv, convert_joint_to_hand_vector
 
 # === FastAPI setup ===
 app = FastAPI()
@@ -27,6 +27,13 @@ app.add_middleware(
 data_folder = Path("C:\\Users\\chtun\\AppData\\LocalLow\\DefaultCompany\\Unity_VR_Template")
 output_folder = Path("../output")
 input_VQVAE_model = output_folder / "vqvae_hand_model.pt"
+
+gesture_template_paths = [
+    ("right_jab", data_folder / "hand_data-right_jab-1.csv"),
+    ("right_jab", data_folder / "hand_data-right_jab-2.csv"),
+    ("right_jab", data_folder / "hand_data-right_jab-3.csv"),
+    ("table_bang", data_folder / "hand_data-table_bang-1.csv")
+]
 
 # === Load state dict ===
 state_dict = torch.load(input_VQVAE_model, map_location="cpu")
@@ -49,15 +56,36 @@ vqvae_model.eval()
 # === Gesture templates storage: dict of lists ===
 gesture_templates: Dict[str, List[Dict[str, torch.Tensor]]] = {}
 
+# === Load all gesture sequences ===
+for pair in gesture_template_paths:
+    gesture_key =  pair[0]
+    template_path = pair[1]
+
+    if gesture_key not in gesture_templates:
+        gesture_templates[gesture_key] = []
+
+    left_seq, right_seq, lw, rw = load_hand_tensors_from_csv(template_path, JOINTS_LIST)
+    gesture_dict = {
+        "left_hand_vectors": left_seq,
+        "right_hand_vectors": right_seq,
+        "left_wrist_root": lw,
+        "right_wrist_root": rw
+    }
+
+    gesture_templates[gesture_key].append(gesture_dict)
+
+print(gesture_template_paths)
+
+
 # === WebSocket settings ===
-BUFFER_MAX_LEN = 50
+BUFFER_MAX_LEN = 40
 MATCH_THRESHOLD = 0.15
 
 # === HTTP Endpoint to add a new gesture ===
 class GestureInput(BaseModel):
     label: str
-    right_hand: List[List[float]]
-    left_hand: List[List[float]]
+    right_joints: List[List[List[float]]]
+    left_joints: List[List[List[float]]]
     left_wrist: List[List[float]]
     right_wrist: List[List[float]]
 
@@ -66,8 +94,8 @@ async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
 
     # Maintain separate rolling buffers
-    buffer_left_joints = deque(maxlen=BUFFER_MAX_LEN)
-    buffer_right_joints = deque(maxlen=BUFFER_MAX_LEN)
+    buffer_left_hands = deque(maxlen=BUFFER_MAX_LEN)
+    buffer_right_hands = deque(maxlen=BUFFER_MAX_LEN)
     buffer_left_wrist = deque(maxlen=BUFFER_MAX_LEN)
     buffer_right_wrist = deque(maxlen=BUFFER_MAX_LEN)
 
@@ -76,55 +104,76 @@ async def websocket_endpoint(websocket: WebSocket):
             message = await websocket.receive_text()
             data = json.loads(message)
 
-            print(data)
-
             # Parse per-frame data
-            left_joints_frame = joints_dict_to_tensor(data["left_hand"], JOINTS_LIST)
-            right_joints_frame = joints_dict_to_tensor(data["right_hand"], JOINTS_LIST)
+            left_hands_frame = joints_dict_to_tensor(data["left_hand"], JOINTS_LIST)
+            right_hands_frame = joints_dict_to_tensor(data["right_hand"], JOINTS_LIST)
             left_wrist_frame = torch.tensor(data["left_wrist"], dtype=torch.float32)
             right_wrist_frame = torch.tensor(data["right_wrist"], dtype=torch.float32)
 
 
             # Add to rolling buffers
-            buffer_left_joints.append(left_joints_frame)
-            buffer_right_joints.append(right_joints_frame)
+            buffer_left_hands.append(left_hands_frame)
+            buffer_right_hands.append(right_hands_frame)
             buffer_left_wrist.append(left_wrist_frame)
             buffer_right_wrist.append(right_wrist_frame)
 
             # Start comparing when enough frames are buffered
-            if len(buffer_left_joints) >= 5:
-                seq_left_joints = torch.stack(list(buffer_left_joints), dim=0)
-                seq_right_joints = torch.stack(list(buffer_right_joints), dim=0)
+            if len(buffer_left_hands) >= 5:
+                seq_left_hands = torch.stack(list(buffer_left_hands), dim=0)
+                seq_right_hands = torch.stack(list(buffer_right_hands), dim=0)
                 seq_left_wrist = torch.stack(list(buffer_left_wrist), dim=0)
                 seq_right_wrist = torch.stack(list(buffer_right_wrist), dim=0)
+
+                # Flatten for input
+                seq_left_hands_flat = seq_left_hands.view(seq_left_hands.shape[0], -1)   # (num_frames, num_joints * 3)
+                seq_right_hands_flat = seq_right_hands.view(seq_right_hands.shape[0], -1) # (num_frames, num_joints * 3)
+
+                print("Checking gestures!")
+
+                match_found = False  # Flag to track if any match occurs
 
                 # Compare to all gesture templates
                 for gesture_key, template_list in gesture_templates.items():
                     for template in template_list:
                         dtw_dist = sequence_distance(
                             vqvae_model,
-                            seq_left_joints,
-                            seq_right_joints,
+                            seq_left_hands_flat,
+                            seq_right_hands_flat,
                             seq_left_wrist,
                             seq_right_wrist,
-                            template["left_joints"],
-                            template["right_joints"],
-                            template["left_wrist"],
-                            template["right_wrist"]
+                            template["left_hand_vectors"],
+                            template["right_hand_vectors"],
+                            template["left_wrist_root"],
+                            template["right_wrist_root"]
                         )
 
                         if dtw_dist < MATCH_THRESHOLD:
+                            print(f"Gesture match found: {gesture_key}")
                             await websocket.send_json({
                                 "match": True,
                                 "label": gesture_key,
                                 "dtw_distance": dtw_dist
                             })
+
                             # Reset buffers to avoid duplicate matches
-                            buffer_left_joints.clear()
-                            buffer_right_joints.clear()
+                            buffer_left_hands.clear()
+                            buffer_right_hands.clear()
                             buffer_left_wrist.clear()
                             buffer_right_wrist.clear()
-                            break
+
+                            match_found = True
+                            break  # Stop checking this gesture
+
+                    if match_found:
+                        break  # Stop checking further gestures
+
+                # If no match was found
+                if not match_found:
+                    await websocket.send_json({
+                        "match": False,
+                        "label": None,
+                        "dtw_distance": None
+                    })
 
     except WebSocketDisconnect:
         print("Client disconnected.")
@@ -139,29 +188,79 @@ async def websocket_endpoint(websocket: WebSocket):
 @app.post("/add_gesture")
 async def add_gesture(gesture: GestureInput):
     try:
-        joints_seq = torch.tensor([r + l for r, l in zip(gesture.right_hand, gesture.left_hand)], dtype=torch.float32)
-        # Combine left + right wrist per frame
-        wrist_seq = torch.tensor([lw + rw for lw, rw in zip(gesture.left_wrist, gesture.right_wrist)], dtype=torch.float32)
+        # === Validate sequence lengths ===
+        seq_len_left_joints = len(gesture.left_joints)
+        seq_len_right_joints = len(gesture.right_joints)
+        seq_len_left_wrist = len(gesture.left_wrist)
+        seq_len_right_wrist = len(gesture.right_wrist)
 
-        example = {"joints": joints_seq, "wrist": wrist_seq}
+        if not (seq_len_left_joints == seq_len_right_joints == seq_len_left_wrist == seq_len_right_wrist):
+            raise ValueError(
+                f"All sequences must have the same length, got: "
+                f"left_joints={seq_len_left_joints}, right_joints={seq_len_right_joints}, "
+                f"left_wrist={seq_len_left_wrist}, right_wrist={seq_len_right_wrist}"
+            )
+
+        # === Convert to tensors ===
+        left_joints = torch.tensor(gesture.left_joints, dtype=torch.float32)
+        right_joints = torch.tensor(gesture.right_joints, dtype=torch.float32)
+        left_wrist_root = torch.tensor(gesture.left_wrist, dtype=torch.float32)
+        right_wrist_root = torch.tensor(gesture.right_wrist, dtype=torch.float32)
+
+        # === Validate per-frame structure ===
+        if left_joints.ndim != 3 or left_joints.shape[-1] != 3:
+            raise ValueError(f"left_joints must have shape (B, 24, 3), got {left_joints.shape}")
+        if right_joints.ndim != 3 or right_joints.shape[-1] != 3:
+            raise ValueError(f"right_joints must have shape (B, 24, 3), got {right_joints.shape}")
+
+        # === Convert joints to hand vectors ===
+        left_hand_vectors = convert_joint_to_hand_vector(left_joints)
+        right_hand_vectors = convert_joint_to_hand_vector(right_joints)
+
+        # === Store the gesture ===
+        gesture_dict = {
+            "left_hand_vectors": left_hand_vectors,
+            "right_hand_vectors": right_hand_vectors,
+            "left_wrist_root": left_wrist_root,
+            "right_wrist_root": right_wrist_root,
+        }
 
         if gesture.label not in gesture_templates:
             gesture_templates[gesture.label] = []
-        gesture_templates[gesture.label].append(example)
+        gesture_templates[gesture.label].append(gesture_dict)
 
         return {
             "status": "ok",
             "message": f"Gesture '{gesture.label}' added",
-            "total_examples": len(gesture_templates[gesture.label])
+            "total_examples": len(gesture_templates[gesture.label]),
         }
+
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
 
-# === GET endpoint to list current gestures ===
-@app.get("/gestures")
+@app.get("/get_gestures")
 async def get_gestures():
-    return {label: len(examples) for label, examples in gesture_templates.items()}
+    serializable_gestures = {}
+
+    def tensor_to_list(tensor):
+        # Convert PyTorch tensor to nested lists
+        return tensor.cpu().tolist()
+
+    for gesture_key, templates in gesture_templates.items():
+        serializable_gestures[gesture_key] = []
+
+        for template in templates:
+            serializable_template = {
+                "left_hand_vectors": tensor_to_list(template["left_hand_vectors"]),
+                "right_hand_vectors": tensor_to_list(template["right_hand_vectors"]),
+                "left_wrist_root": tensor_to_list(template["left_wrist_root"]),
+                "right_wrist_root": tensor_to_list(template["right_wrist_root"]),
+            }
+            serializable_gestures[gesture_key].append(serializable_template)
+
+    return serializable_gestures
+
 
 
 if __name__ == "__main__":

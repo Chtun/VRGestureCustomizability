@@ -77,9 +77,9 @@ for i in range(num_gestures):
         dist = sequence_distance(
             vqvae_model,
             left_seq1, right_seq1,
+            lw1, rw1,
             left_seq2, right_seq2,
-            lw1, rw1, lw2, rw2,
-            device=DEVICE
+            lw2, rw2
         )
 
         print(f"DTW Distance between gesture {i+1} and {j+1}: {dist:.4f}")

@@ -1,5 +1,4 @@
 ﻿using Newtonsoft.Json;
-using Oculus.Interaction.Input;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -14,15 +13,20 @@ public class GestureWebSocketStreamer : MonoBehaviour
 	[SerializeField] private JointDataGather jointDataGather;
 
 	[Header("WebSocket Settings")]
-	[SerializeField] private string serverUrl = "ws://127.0.0.1:8000/ws";
 	[SerializeField] private float sendInterval = 0.1f;
 
+	[Header("API Settings (auto-loaded from config)")]
+	private string serverUrl = "ws://127.0.0.1:8000";
+
 	private ClientWebSocket ws;
-	private bool isStreaming = false;
+	[SerializeField] private bool isStreaming = false;
 	private CancellationTokenSource cts;
 
 	private void Start()
 	{
+		Config config = Config.LoadConfig();
+		serverUrl = config.GetWSURL();
+		Debug.Log($"Loaded server URL from config: {serverUrl}");
 		StartCoroutine(WaitForTrackingThenConnect());
 	}
 
@@ -178,19 +182,6 @@ public class GestureWebSocketStreamer : MonoBehaviour
 		}
 	}
 
-
-	private List<float> FlattenJointDictionary(Dictionary<HandJointId, Pose> joints)
-	{
-		var data = new List<float>();
-		foreach (var kvp in joints)
-		{
-			var pos = kvp.Value.position;
-			data.Add(pos.x);
-			data.Add(pos.y);
-			data.Add(pos.z);
-		}
-		return data;
-	}
 
 	private async void OnDestroy()
 	{
