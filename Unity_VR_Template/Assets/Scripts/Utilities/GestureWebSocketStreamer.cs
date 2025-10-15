@@ -22,6 +22,9 @@ public class GestureWebSocketStreamer : MonoBehaviour
 	[SerializeField] private bool isStreaming = false;
 	private CancellationTokenSource cts;
 
+	// ✅ Add an Action to forward received messages
+	public Action<string> OnGestureDataReceived;
+
 	private void Start()
 	{
 		Config config = Config.LoadConfig();
@@ -107,7 +110,12 @@ public class GestureWebSocketStreamer : MonoBehaviour
 				else
 				{
 					string message = Encoding.UTF8.GetString(buffer, 0, result.Count);
+
+					// ✅ Print the message
 					Debug.Log($"Received from server: {message}");
+
+					// ✅ Pass it along via Action if assigned
+					OnGestureDataReceived?.Invoke(message);
 				}
 			}
 		}
@@ -125,7 +133,6 @@ public class GestureWebSocketStreamer : MonoBehaviour
 			{
 				var leftJoints = jointDataGather.GetJointData(false);
 				var rightJoints = jointDataGather.GetJointData(true);
-
 				var leftRoot = jointDataGather.GetRootPose(false);
 				var rightRoot = jointDataGather.GetRootPose(true);
 
@@ -157,20 +164,20 @@ public class GestureWebSocketStreamer : MonoBehaviour
 					right_wrist = rightWristList
 				};
 
-				// Serialize to JSON
+				// Serialize to JSON string
 				string json = JsonConvert.SerializeObject(payload);
-
 
 				if (ws.State == WebSocketState.Open)
 				{
 					byte[] bytes = Encoding.UTF8.GetBytes(json);
+
 					// Fire-and-forget SendAsync
 					ws.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, cts.Token)
-					  .ContinueWith(t =>
-					  {
-						  if (t.Exception != null)
-							  Debug.LogError($"WebSocket send failed: {t.Exception}");
-					  });
+						.ContinueWith(t =>
+						{
+							if (t.Exception != null)
+								Debug.LogError($"WebSocket send failed: {t.Exception}");
+						});
 				}
 			}
 			catch (Exception ex)

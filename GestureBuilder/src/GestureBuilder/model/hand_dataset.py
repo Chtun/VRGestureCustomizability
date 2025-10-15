@@ -54,14 +54,39 @@ class HandDataset(Dataset):
 
 def joints_dict_to_tensor(joints_dict, joint_names):
     """
-    Converts a dict of joint_name -> [x,y,z] into a tensor of shape (num_joints, 3)
-    in the canonical joint order.
+    Converts a dictionary of joint_name -> [x, y, z] into a tensor of relative hand vectors.
+
+    Steps:
+        1. Extracts joint positions from the input dictionary following the canonical joint order.
+        2. Converts the list of positions into a tensor of shape (num_joints, 3).
+        3. Converts the absolute joint positions into relative hand vectors
+           using `convert_joint_to_hand_vector`, consistent with real-time processing.
+
+    Args:
+        joints_dict (dict): Dictionary mapping joint names to [x, y, z] positions.
+        joint_names (list[str]): Ordered list of joint names to preserve consistent indexing.
+
+    Returns:
+        torch.Tensor: Tensor of relative hand vectors with shape (num_joints, 3).
     """
     joints_list = []
     for jname in joint_names:
-        pos = joints_dict[jname]  # should be a list of 3 floats
+        pos = joints_dict[jname]  # Each entry is [x, y, z]
         joints_list.append(pos)
-    return torch.tensor(joints_list, dtype=torch.float32)
+
+    # Convert to tensor of shape (num_joints, 3)
+    J = torch.tensor(joints_list, dtype=torch.float32)
+
+    # Add batch/frame dimension for compatibility with converter
+    J = J.unsqueeze(0)  # (1, num_joints, 3)
+
+    # Convert absolute joint positions to relative hand vectors
+    V = convert_joint_to_hand_vector(J)  # (1, num_joints, 3)
+
+    # Remove batch dimension -> (num_joints, 3)
+    V = V.squeeze(0)
+
+    return V
 
 def load_hand_tensors_from_csv(csv_path, joints_list):
     """

@@ -1,80 +1,9 @@
 import torch
 import torch.nn.functional as F
+
+import matplotlib.pyplot as plt
+
 from ..model.VQ_VAE import VQVAE
-
-# def compute_frame_distance(
-#     latent_left_A, latent_right_A,
-#     latent_left_B, latent_right_B,
-#     left_wrist_pos_A, right_wrist_pos_A,
-#     left_wrist_pos_B, right_wrist_pos_B,
-#     left_wrist_vel_A, right_wrist_vel_A,
-#     left_wrist_vel_B, right_wrist_vel_B,
-#     alpha_latent: float = 0.5,
-#     alpha_wrist: float = 0.7,
-#     LATENT_MAX: float = 4.5
-# ):
-#     """
-#     Compute frame-wise distance between two hands using:
-#     - Latent vectors
-#     - Velocity magnitude + angular difference
-#     - Angle between wrists
-#     """
-#     # --------------------------
-#     # Latent distances per hand (normalized)
-#     # --------------------------
-#     latent_dist_left = torch.norm(latent_left_A - latent_left_B, p=2) / LATENT_MAX
-#     latent_dist_right = torch.norm(latent_right_A - latent_right_B, p=2) / LATENT_MAX
-#     latent_dist = alpha_latent * latent_dist_left + (1 - alpha_latent) * latent_dist_right
-
-#     # --------------------------
-#     # Wrist velocity + position distances
-#     # --------------------------
-#     left_wrist_dist = velocity_magnitude_distance(left_wrist_vel_A, left_wrist_vel_B,)
-#     right_wrist_dist = velocity_magnitude_distance(right_wrist_vel_A, right_wrist_vel_B)
-    
-#     wrist_difference_dist = wrist_difference_distance(left_wrist_pos_A, right_wrist_pos_A, left_wrist_pos_B, right_wrist_pos_B)
-    
-#     wrist_dist = wrist_difference_dist / 5.0 + (left_wrist_dist + right_wrist_dist) / 2.0
-
-#     # --------------------------
-#     # Combine
-#     # --------------------------
-#     combined = alpha_wrist * latent_dist + (1 - alpha_wrist) * wrist_dist
-
-#     return combined
-
-
-# def velocity_magnitude_distance(wrist_vel_A, wrist_vel_B):
-#     """
-#     Compute the velocity magnitude metric for a single wrist.
-#     """
-#     # Velocity magnitudes
-#     mag_A = torch.norm(wrist_vel_A)
-#     mag_B = torch.norm(wrist_vel_B)
-    
-#     # Magnitude difference
-#     mag_diff = torch.abs(mag_A - mag_B)
-#     return mag_diff
-
-# def wrist_difference_distance(left_wrist_pos_A, right_wrist_pos_A, left_wrist_pos_B, right_wrist_pos_B):
-#     """
-#     Computes the difference in left-right wrist distance and angle
-#     """
-
-#     wrist_distance_A = torch.norm(left_wrist_pos_A - right_wrist_pos_A)
-#     wrist_distance_B = torch.norm(left_wrist_pos_B - right_wrist_pos_B)
-
-#     # Compute the left-right wrist distance difference from A and B.
-#     mag_diff = torch.abs(wrist_distance_A - wrist_distance_B)
-
-#     # Compute angle between position vectors
-#     cos_angle_A = F.cosine_similarity(left_wrist_pos_A.unsqueeze(0), right_wrist_pos_A.unsqueeze(0))
-#     cos_angle_B = F.cosine_similarity(left_wrist_pos_B.unsqueeze(0), right_wrist_pos_B.unsqueeze(0))
-#     angle_A = torch.acos(torch.clamp(cos_angle_A, -1.0, 1.0))
-#     angle_B = torch.acos(torch.clamp(cos_angle_B, -1.0, 1.0))
-#     angle_diff = torch.abs(angle_A - angle_B)
-
-#     return mag_diff + angle_diff
 
 def compute_frame_distance_batch(
     latent_left_A, latent_right_A,
@@ -83,9 +12,8 @@ def compute_frame_distance_batch(
     left_wrist_pos_B, right_wrist_pos_B,
     left_wrist_vel_A, right_wrist_vel_A,
     left_wrist_vel_B, right_wrist_vel_B,
-    alpha_latent: float = 0.5,
-    alpha_wrist: float = 0.7,
-    LATENT_MAX: float = 4.5
+    alpha_wrist: float = 0.5,
+    LATENT_MAX: float = 6.0
 ):
     """
     Compute pairwise frame-wise distances between two sequences of hand frames in batch.
@@ -113,7 +41,7 @@ def compute_frame_distance_batch(
     latent_right_B_exp = latent_right_B.unsqueeze(0)
     latent_dist_left = torch.norm(latent_left_A_exp - latent_left_B_exp, dim=-1) / LATENT_MAX
     latent_dist_right = torch.norm(latent_right_A_exp - latent_right_B_exp, dim=-1) / LATENT_MAX
-    latent_dist = alpha_latent * latent_dist_left + (1 - alpha_latent) * latent_dist_right
+    latent_dist = (latent_dist_left + latent_dist_right) / 2.0
 
     # Wrist velocity distance: |norm(A) - norm(B)|
     left_vel_A_exp = left_wrist_vel_A.unsqueeze(1)
@@ -136,9 +64,9 @@ def compute_frame_distance_batch(
     angle_diff = torch.abs(angle_A.unsqueeze(1) - angle_B.unsqueeze(0))
 
     wrist_dist = mag_diff + angle_diff
-    wrist_dist = wrist_dist / 5.0 + (left_wrist_dist + right_wrist_dist) / 2.0
+    wrist_dist = 20 * (wrist_dist / 5.0 + (left_wrist_dist + right_wrist_dist) / 2.0)
 
-    frame_matrix = alpha_wrist * latent_dist + (1 - alpha_wrist) * wrist_dist
+    frame_matrix = alpha_wrist * wrist_dist + (1 - alpha_wrist) * latent_dist
     return frame_matrix
 
 
@@ -152,8 +80,8 @@ def dtw_subsequence_full_alignment(
     right_wrist_seq1: torch.Tensor,
     left_wrist_seq2: torch.Tensor,
     right_wrist_seq2: torch.Tensor,
-    alpha_latent: float = 0.7,
-    alpha_wrist: float = 0.7
+    alpha_wrist: float = 0.5,
+    device: str = "cpu"
 ):
     """
     DTW distance for a subsequence match where seq1 must fully fit inside seq2.
@@ -162,7 +90,7 @@ def dtw_subsequence_full_alignment(
 
     T1 = latent_left_seq1.shape[0]
     T2 = latent_left_seq2.shape[0]
-    print(f"\n[DTW] Sequence lengths: seq1={T1}, seq2={T2}")
+    # print(f"\n[DTW] Sequence lengths: seq1={T1}, seq2={T2}")
 
     if T1 > T2:
         raise ValueError("seq1 must be shorter than or equal to seq2 for full alignment.")
@@ -173,23 +101,21 @@ def dtw_subsequence_full_alignment(
     vel_left_seq2 = left_wrist_seq2[1:] - left_wrist_seq2[:-1]
     vel_right_seq2 = right_wrist_seq2[1:] - right_wrist_seq2[:-1]
 
-    # Compute magnitudes
-    mag_left_seq1 = torch.norm(vel_left_seq1, dim=-1)
-    mag_right_seq1 = torch.norm(vel_right_seq1, dim=-1)
-    mag_left_seq2 = torch.norm(vel_left_seq2, dim=-1)
-    mag_right_seq2 = torch.norm(vel_right_seq2, dim=-1)
+    # # Compute magnitudes
+    # mag_left_seq1 = torch.norm(vel_left_seq1, dim=-1)
+    # mag_right_seq1 = torch.norm(vel_right_seq1, dim=-1)
+    # mag_left_seq2 = torch.norm(vel_left_seq2, dim=-1)
+    # mag_right_seq2 = torch.norm(vel_right_seq2, dim=-1)
 
-    # Compute wrist distances for each frame
-    wrist_distance_A = torch.norm(left_wrist_seq1 - right_wrist_seq1, dim=-1)
-    wrist_distance_B = torch.norm(left_wrist_seq2 - right_wrist_seq2, dim=-1)
+    # # Compute wrist distances for each frame
+    # wrist_distance_A = torch.norm(left_wrist_seq1 - right_wrist_seq1, dim=-1)
+    # wrist_distance_B = torch.norm(left_wrist_seq2 - right_wrist_seq2, dim=-1)
 
-    # Compute angles between left and right wrist vectors for each frame
-    cos_angle_A = F.cosine_similarity(left_wrist_seq1, right_wrist_seq1, dim=-1)
-    cos_angle_B = F.cosine_similarity(left_wrist_seq2, right_wrist_seq2, dim=-1)
-    angle_A = torch.acos(torch.clamp(cos_angle_A, -1.0, 1.0))
-    angle_B = torch.acos(torch.clamp(cos_angle_B, -1.0, 1.0))
-
-    import matplotlib.pyplot as plt
+    # # Compute angles between left and right wrist vectors for each frame
+    # cos_angle_A = F.cosine_similarity(left_wrist_seq1, right_wrist_seq1, dim=-1)
+    # cos_angle_B = F.cosine_similarity(left_wrist_seq2, right_wrist_seq2, dim=-1)
+    # angle_A = torch.acos(torch.clamp(cos_angle_A, -1.0, 1.0))
+    # angle_B = torch.acos(torch.clamp(cos_angle_B, -1.0, 1.0))
 
     # # Plot magnitudes
     # plt.figure(figsize=(10, 5))
@@ -224,7 +150,6 @@ def dtw_subsequence_full_alignment(
         left_wrist_seq2, right_wrist_seq2,
         vel_left_seq1, vel_right_seq1,
         vel_left_seq2, vel_right_seq2,
-        alpha_latent=alpha_latent,
         alpha_wrist=alpha_wrist
     )  # shape: (T1, T2)
 
@@ -253,32 +178,31 @@ def dtw_subsequence_full_alignment(
     # plt.show()
 
     # DTW matrix
-    D = torch.zeros((T1_vel + 1, T2_vel + 1)) + float('inf')
-    D[0, :] = 0.0  # allow subsequence alignment
-    D[:, 0] = float('inf')
+    T1_vel, T2_vel = frame_matrix.shape
+    D = torch.full((T1_vel + 1, T2_vel + 1), float('inf'), device=device)
+    D[0, :] = 0.0
     D[0, 0] = 0.0
 
-    # Matrix to store the best step (0=diag, 1=up, 2=left)
-    backtrack = torch.zeros((T1_vel + 1, T2_vel + 1), dtype=torch.int)
-
-    penalty_factor = 0.01  # tune this
+    backtrack = torch.zeros((T1_vel + 1, T2_vel + 1), dtype=torch.int, device=device)
+    penalty = 0.01
 
     for i in range(1, T1_vel + 1):
-        for j in range(1, T2_vel + 1):
-            costs = torch.zeros(3)
-            
-            # match/diag has no penalty
-            costs[0] = D[i - 1, j - 1]
-            
-            # insertion (stretch seq1)
-            costs[1] = D[i - 1, j] + penalty_factor * max(0, j - i)
-            
-            # deletion (stretch seq2)
-            costs[2] = D[i, j - 1] + penalty_factor * max(0, i - j)
-            
-            min_cost, min_idx = torch.min(costs, 0)
-            D[i, j] = frame_matrix[i - 1, j - 1] + min_cost
-            backtrack[i, j] = min_idx
+        j_indices = torch.arange(1, T2_vel + 1, device=device)  # move to correct device
+
+        # Previous costs
+        prev_diag = D[i - 1, j_indices - 1]                   
+        prev_up = D[i - 1, j_indices] + penalty * torch.clamp(j_indices - i, min=0)   
+        prev_left = D[i, j_indices - 1] + penalty * torch.clamp(i - j_indices, min=0) 
+
+        # Stack for min
+        stacked = torch.stack([prev_diag, prev_up, prev_left], dim=0)  
+        min_costs, min_idx = stacked.min(dim=0)  # min_idx: 0=diag,1=up,2=left
+
+        # Update DP and backtrack
+        D[i, j_indices] = frame_matrix[i - 1, :] + min_costs
+        backtrack[i, j_indices] = min_idx.to(backtrack.dtype)
+
+
 
     # # Visualize the DTW cost matrix
     # plt.figure(figsize=(8, 6))
@@ -294,9 +218,9 @@ def dtw_subsequence_full_alignment(
     dtw_dist_norm, end_idx = dtw_costs.min(0)
     dtw_dist_norm = dtw_dist_norm.item()
     end_idx = end_idx.item() + 1  # add 1 because we sliced D[:,1:]
-    print(f"[DTW] Minimum cost: {dtw_dist_norm:.6f} which ends at seq2 index: {end_idx}")
+    # print(f"[DTW] Minimum cost: {dtw_dist_norm:.6f} which ends at seq2 index: {end_idx}")
 
-    # Optional: reconstruct the alignment path
+    # reconstruct the alignment path
     i, j = T1_vel, end_idx
     path = []
     while i > 0 and j > 0:
@@ -310,36 +234,36 @@ def dtw_subsequence_full_alignment(
         elif step == 2:    # left
             j -= 1
     path.reverse()
-    print("Alignment path:", path)
+    # print("Alignment path:", path)
     best_start = path[0]
 
-    # Get aligned seq2 based on DTW path
-    seq2_aligned_indices = [j for i, j in path]
-    print(seq2_aligned_indices)
-    aligned_left_seq2 = left_wrist_seq2[torch.tensor(seq2_aligned_indices)]
-    aligned_right_seq2 = right_wrist_seq2[torch.tensor(seq2_aligned_indices)]
+    # # Get aligned seq2 based on DTW path
+    # seq2_aligned_indices = [j for i, j in path]
+    # print(seq2_aligned_indices)
+    # aligned_left_seq2 = left_wrist_seq2[torch.tensor(seq2_aligned_indices)]
+    # aligned_right_seq2 = right_wrist_seq2[torch.tensor(seq2_aligned_indices)]
 
-    # Compute wrist velocities
-    vel_left_seq1 = left_wrist_seq1[1:] - left_wrist_seq1[:-1]
-    vel_right_seq1 = right_wrist_seq1[1:] - right_wrist_seq1[:-1]
-    vel_left_aligned_seq2 = aligned_left_seq2[1:] - aligned_left_seq2[:-1]
-    vel_right_aligned_seq2 = aligned_right_seq2[1:] - aligned_right_seq2[:-1]
+    # # Compute wrist velocities
+    # vel_left_seq1 = left_wrist_seq1[1:] - left_wrist_seq1[:-1]
+    # vel_right_seq1 = right_wrist_seq1[1:] - right_wrist_seq1[:-1]
+    # vel_left_aligned_seq2 = aligned_left_seq2[1:] - aligned_left_seq2[:-1]
+    # vel_right_aligned_seq2 = aligned_right_seq2[1:] - aligned_right_seq2[:-1]
 
-    # Compute magnitudes
-    mag_left_seq1 = torch.norm(vel_left_seq1, dim=-1)
-    mag_right_seq1 = torch.norm(vel_right_seq1, dim=-1)
-    mag_left_aligned_seq2 = torch.norm(vel_left_aligned_seq2, dim=-1)
-    mag_right_aligned_seq2 = torch.norm(vel_right_aligned_seq2, dim=-1)
+    # # Compute magnitudes
+    # mag_left_seq1 = torch.norm(vel_left_seq1, dim=-1)
+    # mag_right_seq1 = torch.norm(vel_right_seq1, dim=-1)
+    # mag_left_aligned_seq2 = torch.norm(vel_left_aligned_seq2, dim=-1)
+    # mag_right_aligned_seq2 = torch.norm(vel_right_aligned_seq2, dim=-1)
 
-    # Compute wrist distances
-    wrist_distance_seq1 = torch.norm(left_wrist_seq1 - right_wrist_seq1, dim=-1)
-    wrist_distance_aligned_seq2 = torch.norm(aligned_left_seq2 - aligned_right_seq2, dim=-1)
+    # # Compute wrist distances
+    # wrist_distance_seq1 = torch.norm(left_wrist_seq1 - right_wrist_seq1, dim=-1)
+    # wrist_distance_aligned_seq2 = torch.norm(aligned_left_seq2 - aligned_right_seq2, dim=-1)
 
-    # Compute angles between left and right wrists
-    cos_angle_seq1 = F.cosine_similarity(left_wrist_seq1, right_wrist_seq1, dim=-1)
-    cos_angle_aligned_seq2 = F.cosine_similarity(aligned_left_seq2, aligned_right_seq2, dim=-1)
-    angle_seq1 = torch.acos(torch.clamp(cos_angle_seq1, -1.0, 1.0))
-    angle_aligned_seq2 = torch.acos(torch.clamp(cos_angle_aligned_seq2, -1.0, 1.0))
+    # # Compute angles between left and right wrists
+    # cos_angle_seq1 = F.cosine_similarity(left_wrist_seq1, right_wrist_seq1, dim=-1)
+    # cos_angle_aligned_seq2 = F.cosine_similarity(aligned_left_seq2, aligned_right_seq2, dim=-1)
+    # angle_seq1 = torch.acos(torch.clamp(cos_angle_seq1, -1.0, 1.0))
+    # angle_aligned_seq2 = torch.acos(torch.clamp(cos_angle_aligned_seq2, -1.0, 1.0))
 
     # # Plot all together
     # plt.figure(figsize=(12, 6))
@@ -360,9 +284,20 @@ def dtw_subsequence_full_alignment(
     # plt.legend()
     # plt.grid(True)
     # plt.show()
+    
 
+    print(path)
+    seq2_span = path[-1][1] - path[0][1] + 1  # how many frames in seq2 the match spanned
+
+    print(path[-1][1])
+    print(path[0][1])
+    print(seq2_span)
+
+    if seq2_span > 0:
+        dtw_dist_norm /= seq2_span
 
     return dtw_dist_norm, best_start
+
 
 
 
@@ -376,8 +311,7 @@ def sequence_distance(
     right_hand_seq2: torch.Tensor,
     left_wrist_seq2: torch.Tensor,
     right_wrist_seq2: torch.Tensor,
-    alpha_latent: float = 0.7,
-    alpha_wrist: float = 0.7,
+    alpha_wrist: float = 0.3,
 ):
     """
     Compute a DTW-based distance between two gesture sequences using both hands and wrist positions.
@@ -471,11 +405,13 @@ def sequence_distance(
     len1 = latent_left_seq1.shape[0]
     len2 = latent_left_seq2.shape[0]
     if len1 > len2:
-        print(f"[Sequence Swap] seq1 is longer than seq2 ({len1} > {len2}), swapping sequences for DTW.")
+        # print(f"[Sequence Swap] seq1 is longer than seq2 ({len1} > {len2}), swapping sequences for DTW.")
         latent_left_seq1, latent_left_seq2 = latent_left_seq2, latent_left_seq1
         latent_right_seq1, latent_right_seq2 = latent_right_seq2, latent_right_seq1
         left_wrist_seq1, left_wrist_seq2 = left_wrist_seq2, left_wrist_seq1
         right_wrist_seq1, right_wrist_seq2 = right_wrist_seq2, right_wrist_seq1
+
+    
 
     # DTW
     dtw_distance, index_start = dtw_subsequence_full_alignment(
@@ -483,9 +419,9 @@ def sequence_distance(
         latent_left_seq2, latent_right_seq2,
         left_wrist_seq1, right_wrist_seq1,
         left_wrist_seq2, right_wrist_seq2,
-        alpha_latent=alpha_latent,
-        alpha_wrist=alpha_wrist
+        alpha_wrist=alpha_wrist,
+        device=str(device)
     )
 
-    print(f"[Final] DTW distance = {dtw_distance:.6f}, best start index in seq2 = {index_start}")
+    # print(f"[Final] DTW distance = {dtw_distance:.6f}, best start index in seq2 = {index_start}")
     return dtw_distance

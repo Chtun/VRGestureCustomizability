@@ -7,6 +7,9 @@ import uvicorn
 from pydantic import BaseModel
 from typing import List, Dict
 from pathlib import Path
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+import time
 
 # Import your dataset and model
 from GestureBuilder.model.VQ_VAE import VQVAE
@@ -79,7 +82,7 @@ print(gesture_template_paths)
 
 # === WebSocket settings ===
 BUFFER_MAX_LEN = 40
-MATCH_THRESHOLD = 0.15
+MATCH_THRESHOLD = 0.25
 
 # === HTTP Endpoint to add a new gesture ===
 class GestureInput(BaseModel):
@@ -118,7 +121,8 @@ async def websocket_endpoint(websocket: WebSocket):
             buffer_right_wrist.append(right_wrist_frame)
 
             # Start comparing when enough frames are buffered
-            if len(buffer_left_hands) >= 5:
+            min_buffer_length = 5
+            if len(buffer_left_hands) >= min_buffer_length:
                 seq_left_hands = torch.stack(list(buffer_left_hands), dim=0)
                 seq_right_hands = torch.stack(list(buffer_right_hands), dim=0)
                 seq_left_wrist = torch.stack(list(buffer_left_wrist), dim=0)
@@ -128,52 +132,70 @@ async def websocket_endpoint(websocket: WebSocket):
                 seq_left_hands_flat = seq_left_hands.view(seq_left_hands.shape[0], -1)   # (num_frames, num_joints * 3)
                 seq_right_hands_flat = seq_right_hands.view(seq_right_hands.shape[0], -1) # (num_frames, num_joints * 3)
 
-                print("Checking gestures!")
+                loop = asyncio.get_running_loop()
+                match_found = False
 
-                match_found = False  # Flag to track if any match occurs
+                start_time = time.time()  # start timer
+                lowest_distance = 1000 # Store the lowest dtw distance value.
 
-                # Compare to all gesture templates
-                for gesture_key, template_list in gesture_templates.items():
-                    for template in template_list:
-                        dtw_dist = sequence_distance(
-                            vqvae_model,
-                            seq_left_hands_flat,
-                            seq_right_hands_flat,
-                            seq_left_wrist,
-                            seq_right_wrist,
-                            template["left_hand_vectors"],
-                            template["right_hand_vectors"],
-                            template["left_wrist_root"],
-                            template["right_wrist_root"]
-                        )
+                # Use ThreadPoolExecutor for CPU-bound DTW
+                with ThreadPoolExecutor() as executor:
+                    futures = []
+                    template_keys = []
 
+                    for gesture_key, template_list in gesture_templates.items():
+                        for template in template_list:
+                            if len(buffer_left_hands) >= len(template["left_hand_vectors"]):
+                                future = loop.run_in_executor(
+                                    executor,
+                                    sequence_distance,
+                                    vqvae_model,
+                                    seq_left_hands_flat,
+                                    seq_right_hands_flat,
+                                    seq_left_wrist,
+                                    seq_right_wrist,
+                                    template["left_hand_vectors"],
+                                    template["right_hand_vectors"],
+                                    template["left_wrist_root"],
+                                    template["right_wrist_root"],
+                                )
+                                futures.append(future)
+                                template_keys.append(gesture_key)
+
+                    # Process results as they complete
+                    for future, gesture_key in zip(futures, template_keys):
+                        dtw_dist = await future
                         if dtw_dist < MATCH_THRESHOLD:
-                            print(f"Gesture match found: {gesture_key}")
+                            # Match found
+                            print(f"Gesture match found: {gesture_key}, distance of: {dtw_dist}")
                             await websocket.send_json({
                                 "match": True,
                                 "label": gesture_key,
                                 "dtw_distance": dtw_dist
                             })
 
-                            # Reset buffers to avoid duplicate matches
+                            # Reset buffers
                             buffer_left_hands.clear()
                             buffer_right_hands.clear()
                             buffer_left_wrist.clear()
                             buffer_right_wrist.clear()
 
                             match_found = True
-                            break  # Stop checking this gesture
-
-                    if match_found:
-                        break  # Stop checking further gestures
+                            break  # Stop checking other templates
+                        if lowest_distance > dtw_dist:
+                            lowest_distance = dtw_dist
 
                 # If no match was found
                 if not match_found:
                     await websocket.send_json({
                         "match": False,
                         "label": None,
-                        "dtw_distance": None
+                        "dtw_distance": lowest_distance
                     })
+
+                end_time = time.time()  # end timer
+                # print(f"Time to process all templates: {end_time - start_time:.4f} seconds")
+
 
     except WebSocketDisconnect:
         print("Client disconnected.")
