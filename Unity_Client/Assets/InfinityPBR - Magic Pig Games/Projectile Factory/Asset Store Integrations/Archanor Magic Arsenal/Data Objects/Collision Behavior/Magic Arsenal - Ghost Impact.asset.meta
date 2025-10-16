@@ -1,0 +1,17 @@
+fileFormatVersion: 2
+guid: 878c8b458e67140f2bd9f7d3adba361c
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 11400000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 282087
+  packageName: Projectile Factory for Magic Arsenal by Archanor VFX
+  packageVersion: 1.0.2
+  assetPath: Assets/InfinityPBR - Magic Pig Games/Projectile Factory/Asset Store
+    Integrations/Archanor Magic Arsenal/Data Objects/Collision Behavior/Magic Arsenal
+    - Ghost Impact.asset
+  uploadId: 657284

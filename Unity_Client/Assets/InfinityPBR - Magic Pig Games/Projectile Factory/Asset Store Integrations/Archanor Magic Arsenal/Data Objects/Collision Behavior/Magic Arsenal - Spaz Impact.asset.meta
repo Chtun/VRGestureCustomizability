@@ -1,0 +1,17 @@
+fileFormatVersion: 2
+guid: f02e22348e5384ebf806c6d6af943ad2
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 11400000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 282087
+  packageName: Projectile Factory for Magic Arsenal by Archanor VFX
+  packageVersion: 1.0.2
+  assetPath: Assets/InfinityPBR - Magic Pig Games/Projectile Factory/Asset Store
+    Integrations/Archanor Magic Arsenal/Data Objects/Collision Behavior/Magic Arsenal
+    - Spaz Impact.asset
+  uploadId: 657284
