@@ -10,6 +10,7 @@ from pathlib import Path
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import time
+import yaml
 
 # Import your dataset and model
 from GestureBuilder.model.VQ_VAE import VQVAE
@@ -26,17 +27,25 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
-# === Paths ===
-data_folder = Path("C:\\Users\\chtun\\AppData\\LocalLow\\DefaultCompany\\Unity_VR_Template")
-output_folder = Path("../output")
-input_VQVAE_model = output_folder / "vqvae_hand_model.pt"
+# Load YAML
+config_path = "./config/config.yaml"
+with open(config_path, "r") as f:
+    cfg = yaml.safe_load(f)
 
+# === Paths ===
+data_folder = Path(cfg['paths']['data_folder'])
+output_folder = Path(cfg['paths']['output_folder'])
+input_VQVAE_model = output_folder / cfg['paths']['input_VQVAE_model']
+
+# === Gesture template paths ===
 gesture_template_paths = [
-    ("right_jab", data_folder / "hand_data-right_jab-1.csv"),
-    ("right_jab", data_folder / "hand_data-right_jab-2.csv"),
-    ("right_jab", data_folder / "hand_data-right_jab-3.csv"),
-    ("table_bang", data_folder / "hand_data-table_bang-1.csv")
+    (item['name'], data_folder / item['path'])
+    for item in cfg['gesture_template_paths']
 ]
+
+# === Gesture settings ===
+BUFFER_MAX_LEN = cfg['gesture_settings']['BUFFER_MAX_LEN']
+MATCH_THRESHOLD = cfg['gesture_settings']['MATCH_THRESHOLD']
 
 # === Load state dict ===
 state_dict = torch.load(input_VQVAE_model, map_location="cpu")
@@ -47,11 +56,12 @@ print(f"Loaded num_embeddings from state dict: {num_embeddings}")
 JOINTS_LIST = get_hand_joint_list()
 num_joints = len(JOINTS_LIST)
 input_dim = num_joints * 3
-latent_dim = 8
+latent_dim = cfg['model_params']['latent_dim']
+hidden_dim = cfg['model_params']['hidden_dim']
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 # === Initialize and load model ===
-vqvae_model = VQVAE(input_dim=input_dim, hidden_dim=128, latent_dim=latent_dim, num_embeddings=num_embeddings)
+vqvae_model = VQVAE(input_dim=input_dim, hidden_dim=hidden_dim, latent_dim=latent_dim, num_embeddings=num_embeddings)
 vqvae_model.load_state_dict(torch.load(input_VQVAE_model, map_location=DEVICE))
 vqvae_model.to(DEVICE)
 vqvae_model.eval()
@@ -77,12 +87,7 @@ for pair in gesture_template_paths:
 
     gesture_templates[gesture_key].append(gesture_dict)
 
-print(gesture_template_paths)
-
-
-# === WebSocket settings ===
-BUFFER_MAX_LEN = 40
-MATCH_THRESHOLD = 0.25
+print(gesture_templates.keys())
 
 # === HTTP Endpoint to add a new gesture ===
 class GestureInput(BaseModel):
@@ -140,12 +145,20 @@ async def websocket_endpoint(websocket: WebSocket):
 
                 # Use ThreadPoolExecutor for CPU-bound DTW
                 with ThreadPoolExecutor() as executor:
+                    # Dictionary to hold the lowest distance and match status per gesture key
+                    gesture_results = {}
+
                     futures = []
                     template_keys = []
 
+                    # Submit sequence_distance calls for all templates
                     for gesture_key, template_list in gesture_templates.items():
                         for template in template_list:
-                            if len(buffer_left_hands) >= len(template["left_hand_vectors"]):
+
+                            buffer_length = len(buffer_left_hands)
+                            template_length = len(template["left_hand_vectors"])
+
+                            if buffer_length >= template_length:
                                 future = loop.run_in_executor(
                                     executor,
                                     sequence_distance,
@@ -161,36 +174,36 @@ async def websocket_endpoint(websocket: WebSocket):
                                 )
                                 futures.append(future)
                                 template_keys.append(gesture_key)
+                            elif gesture_key not in gesture_results:
+                                gesture_results[gesture_key] = (-1, False)
 
                     # Process results as they complete
                     for future, gesture_key in zip(futures, template_keys):
                         dtw_dist = await future
-                        if dtw_dist < MATCH_THRESHOLD:
-                            # Match found
-                            print(f"Gesture match found: {gesture_key}, distance of: {dtw_dist}")
-                            await websocket.send_json({
-                                "match": True,
-                                "label": gesture_key,
-                                "dtw_distance": dtw_dist
-                            })
 
-                            # Reset buffers
-                            buffer_left_hands.clear()
-                            buffer_right_hands.clear()
-                            buffer_left_wrist.clear()
-                            buffer_right_wrist.clear()
+                        # Update the lowest distance for this gesture
+                        if gesture_key not in gesture_results:
+                            gesture_results[gesture_key] = (dtw_dist, dtw_dist < MATCH_THRESHOLD)
+                        else:
+                            current_lowest, matched = gesture_results[gesture_key]
 
-                            match_found = True
-                            break  # Stop checking other templates
-                        if lowest_distance > dtw_dist:
-                            lowest_distance = dtw_dist
+                            if current_lowest < 0:
+                                new_lowest = dtw_dist
+                            else:
+                                new_lowest = min(current_lowest, dtw_dist)
+                            
+                            gesture_results[gesture_key] = (new_lowest, new_lowest < MATCH_THRESHOLD)
 
-                # If no match was found
-                if not match_found:
+                    # Reset buffers if any match was found
+                    if any(matched for _, matched in gesture_results.values()):
+                        buffer_left_hands.clear()
+                        buffer_right_hands.clear()
+                        buffer_left_wrist.clear()
+                        buffer_right_wrist.clear()
+
+                    # Send the full gesture results dictionary to the frontend
                     await websocket.send_json({
-                        "match": False,
-                        "label": None,
-                        "dtw_distance": lowest_distance
+                        "gesture_results": {k: v for k, v in gesture_results.items()}
                     })
 
                 end_time = time.time()  # end timer
@@ -286,4 +299,4 @@ async def get_gestures():
 
 
 if __name__ == "__main__":
-    uvicorn.run("gesture_server:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("gesture_server:app", host="127.0.0.1", port=8000, reload=True)

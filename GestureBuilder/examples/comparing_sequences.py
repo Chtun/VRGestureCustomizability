@@ -12,7 +12,8 @@ csv_paths = [
     data_folder / "hand_data-right_jab-1.csv",
     data_folder / "hand_data-right_jab-2.csv",
     data_folder / "hand_data-right_jab-3.csv",
-    data_folder / "hand_data-table_bang-1.csv"
+    data_folder / "hand_data-right_jab-Evan-1.csv",
+    data_folder / "hand_data-table_bang-1.csv",
 ]
 
 output_folder = Path("../output")
@@ -73,6 +74,9 @@ for i in range(num_gestures):
         # print(rw1)
         # print(rw2)
 
+        import time
+
+        start_time = time.time()
 
         dist = sequence_distance(
             vqvae_model,
@@ -82,4 +86,7 @@ for i in range(num_gestures):
             lw2, rw2
         )
 
+        end_time = time.time()
+
         print(f"DTW Distance between gesture {i+1} and {j+1}: {dist:.4f}")
+        print(f"Time to process: {end_time - start_time}")

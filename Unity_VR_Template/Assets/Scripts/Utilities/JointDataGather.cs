@@ -68,6 +68,23 @@ public class JointDataGather : MonoBehaviour
 		};
 	}
 
+	private static bool IsDataReliable(Hand hand)
+	{
+		return hand.IsHighConfidence;
+	}
+
+	public bool IsDataReliable(bool isRightHand)
+	{
+		if (isRightHand)
+		{
+			return IsDataReliable(this.rightHand);
+		}
+		else
+		{
+			return IsDataReliable(this.leftHand);
+		}
+	}
+
 	private static Dictionary<HandJointId, Pose> GetJointData(Hand hand)
 	{
 		Dictionary<HandJointId, Pose> currentJointPoses = new Dictionary<HandJointId, Pose>();

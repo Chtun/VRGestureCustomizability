@@ -1,0 +1,26 @@
+paths:
+  data_folder: "C:\\Users\\chtun\\AppData\\LocalLow\\DefaultCompany\\Unity_VR_Template"
+  output_folder: "../output"
+  input_VQVAE_model: "vqvae_hand_model.pt"
+
+gesture_template_paths:
+  - name: "Right Jab"
+    path: "hand_data-right_jab-Evan-1.csv"
+  # - name: "Right Jab"
+  #   path: "hand_data-right_jab-1.csv"
+  # - name: "Right Jab"
+  #   path: "hand_data-right_jab-2.csv"
+  # - name: "Right Jab"
+  #   path: "hand_data-right_jab-3.csv"
+  - name: "Left Jab"
+    path: "hand_data-left_jab-1.csv"
+  - name: "Table Bang"
+    path: "hand_data-table_bang-1.csv"
+
+gesture_settings:
+  BUFFER_MAX_LEN: 40
+  MATCH_THRESHOLD: 0.4
+
+model_params:
+  latent_dim: 8
+  hidden_dim: 128

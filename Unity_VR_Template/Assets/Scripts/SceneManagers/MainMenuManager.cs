@@ -1,35 +1,34 @@
 using Newtonsoft.Json.Linq;
 using System;
-using System.Collections;
-using TMPro;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class MainMenuManager : MonoBehaviour
 {
 	[SerializeField] private GestureHTTPClient gestureHTTPClient;
 	[SerializeField] private GestureWebSocketStreamer gestureWebSocketStreamer;
-	[SerializeField] private TMP_Text gestureStatusText; // UI Text to show status
+	[SerializeField] private GestureRecognitionUI gestureRecognitionUI;
 
-	private bool matchFound = false;
-	private Coroutine resetMatchCoroutine;
+	private bool isUIInitialized = false;
 
 	void Awake()
 	{
-		// Auto-find the HTTP client if not assigned in Inspector
+		// Auto-find clients if not assigned
 		if (gestureHTTPClient == null)
 			gestureHTTPClient = FindFirstObjectByType<GestureHTTPClient>();
-
 		if (gestureHTTPClient == null)
-			Debug.LogError("[MainMenuManager] GestureHTTPClient not found in the scene!");
+			Debug.LogError("[MainMenuManager] GestureHTTPClient not found!");
 
-		// Auto-find the Web Socket Streamer if not assigned in Inspector
 		if (gestureWebSocketStreamer == null)
 			gestureWebSocketStreamer = FindFirstObjectByType<GestureWebSocketStreamer>();
-
 		if (gestureWebSocketStreamer == null)
-			Debug.LogError("[MainMenuManager] GestureWebSocketStreamer not found in the scene!");
+			Debug.LogError("[MainMenuManager] GestureWebSocketStreamer not found!");
 
-		// Subscribe to WebSocket messages
+		if (gestureRecognitionUI == null)
+			gestureRecognitionUI = FindFirstObjectByType<GestureRecognitionUI>();
+		if (gestureRecognitionUI == null)
+			Debug.LogError("[MainMenuManager] GestureRecognitionUI not found!");
+
 		if (gestureWebSocketStreamer != null)
 			gestureWebSocketStreamer.OnGestureDataReceived += HandleGestureMessage;
 	}
@@ -37,29 +36,15 @@ public class MainMenuManager : MonoBehaviour
 	void Start()
 	{
 		if (gestureHTTPClient != null)
-		{
-			// Fetch gestures from server at startup
 			StartCoroutine(gestureHTTPClient.GetGestures(OnGesturesFetched));
-		}
-		else
-		{
-			Debug.LogWarning("Gestures were not grabbed at the start due to the client not being found.");
-		}
-
-		// Initialize text
-		UpdateGestureStatusText();
 	}
 
 	private void OnGesturesFetched(string jsonResponse)
 	{
 		if (!string.IsNullOrEmpty(jsonResponse))
-		{
-			Debug.Log($"[MainMenuManager] Gestures loaded.");
-		}
+			Debug.Log("[MainMenuManager] Gestures loaded.");
 		else
-		{
-			Debug.LogError("[MainMenuManager] Failed to load gestures from server.");
-		}
+			Debug.LogError("[MainMenuManager] Failed to load gestures.");
 	}
 
 	private void HandleGestureMessage(string json)
@@ -67,49 +52,43 @@ public class MainMenuManager : MonoBehaviour
 		try
 		{
 			var obj = JObject.Parse(json);
-			bool match = obj.Value<bool>("match");
-			string label = obj.Value<string>("label");
-			float distance = obj.Value<float>("dtw_distance");
 
-			if (match)
+			// The backend now sends: {"gesture_results": {"wave": [0.23, true], "fist": [0.87, false], ...}}
+			var resultsToken = obj["gesture_results"];
+			if (resultsToken == null)
 			{
-				matchFound = true;
-				UpdateGestureStatusText(label, distance);
+				Debug.LogWarning("No gesture_results found in message.");
+				return;
+			}
 
-				// Restart the 2-second reset timer if already running
-				if (resetMatchCoroutine != null)
-					StopCoroutine(resetMatchCoroutine);
+			// Convert to a dictionary of string -> (float distance, bool matched)
+			var gestureDict = new Dictionary<string, (float distance, bool matched)>();
+			foreach (var prop in resultsToken.Children<JProperty>())
+			{
+				string key = prop.Name;
+				JArray valueArray = prop.Value as JArray;
+				if (valueArray != null && valueArray.Count == 2)
+				{
+					float distance = valueArray[0].Value<float>();
+					bool matched = valueArray[1].Value<bool>();
+					gestureDict[key] = (distance, matched);
+				}
+			}
 
-				resetMatchCoroutine = StartCoroutine(ResetMatchAfterDelay(2f));
+			// Initialize the UI if not done yet
+			if (!isUIInitialized)
+			{
+				gestureRecognitionUI.InitializeGestures(gestureDict);
+				isUIInitialized = true;
 			}
 			else
 			{
-				// If no match, do not reset matchFound (it remains false if already false)
-				if (!matchFound)
-					UpdateGestureStatusText(null, distance);
+				gestureRecognitionUI.UpdateGestures(gestureDict);
 			}
 		}
 		catch (Exception ex)
 		{
 			Debug.LogError($"Failed to parse gesture JSON: {ex}");
 		}
-	}
-
-	private IEnumerator ResetMatchAfterDelay(float delay)
-	{
-		yield return new WaitForSeconds(delay);
-		matchFound = false;
-		UpdateGestureStatusText(null);
-	}
-
-	private void UpdateGestureStatusText(string label = null, float distance = -1)
-	{
-		if (gestureStatusText == null)
-			return;
-
-		if (matchFound && !string.IsNullOrEmpty(label))
-			gestureStatusText.text = $"Gesture match found: {label}, distance to it is: {distance}.";
-		else
-			gestureStatusText.text = $"No gesture match, distance to closest is: {distance}.";
 	}
 }
