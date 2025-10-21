@@ -11,7 +11,7 @@ GameObject:
   - component: {fileID: 842137102353928727}
   - component: {fileID: 4299142659739424379}
   - component: {fileID: 6186911557289384142}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: FireSmoke
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -205,7 +205,7 @@ ParticleSystem:
       serializedVersion: 2
       minMaxState: 0
       minColor: {r: 1, g: 1, b: 1, a: 1}
-      maxColor: {r: 1, g: 1, b: 1, a: 0.72156864}
+      maxColor: {r: 0.5188679, g: 0.5188679, b: 0.5188679, a: 0.72156864}
       maxGradient:
         serializedVersion: 2
         key0: {r: 1, g: 1, b: 1, a: 1}
@@ -4726,7 +4726,7 @@ ParticleSystemRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: b4a3cd532f543a4448281dc9c13d9aec, type: 2}
+  - {fileID: 2100000, guid: f4f1a795a3f0742f9923324de69d6dbe, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -4791,7 +4791,7 @@ GameObject:
   - component: {fileID: 1897451481958083138}
   - component: {fileID: 3969200746975781702}
   - component: {fileID: 541525367733382331}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: FireRockDebrisSmoke
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -4985,7 +4985,7 @@ ParticleSystem:
       serializedVersion: 2
       minMaxState: 0
       minColor: {r: 1, g: 1, b: 1, a: 1}
-      maxColor: {r: 1, g: 1, b: 1, a: 1}
+      maxColor: {r: 0.5377358, g: 0.20219655, b: 0, a: 1}
       maxGradient:
         serializedVersion: 2
         key0: {r: 1, g: 1, b: 1, a: 1}
@@ -9511,7 +9511,7 @@ ParticleSystemRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: b4a3cd532f543a4448281dc9c13d9aec, type: 2}
+  - {fileID: 2100000, guid: f4f1a795a3f0742f9923324de69d6dbe, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -9578,7 +9578,7 @@ GameObject:
   - component: {fileID: 8553879374849716561}
   - component: {fileID: 2513265753233904601}
   - component: {fileID: 2458575547175657412}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: CUSTOM FIREBALL EXPLOSION
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -14508,7 +14508,7 @@ GameObject:
   - component: {fileID: 6410346839377573721}
   - component: {fileID: 3433238196175951722}
   - component: {fileID: 7008414510186389395}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: FireAfterEmbers
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -14702,7 +14702,7 @@ ParticleSystem:
       serializedVersion: 2
       minMaxState: 0
       minColor: {r: 1, g: 1, b: 1, a: 1}
-      maxColor: {r: 1, g: 1, b: 1, a: 1}
+      maxColor: {r: 1, g: 0.24644181, b: 0, a: 1}
       maxGradient:
         serializedVersion: 2
         key0: {r: 1, g: 1, b: 1, a: 1}
@@ -19183,7 +19183,7 @@ ParticleSystemRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 5ebadb3a85da1d54297d8a21786bec58, type: 2}
+  - {fileID: 2100000, guid: f4f1a795a3f0742f9923324de69d6dbe, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -19248,7 +19248,7 @@ GameObject:
   - component: {fileID: 7724927374875564214}
   - component: {fileID: 1592527766789355658}
   - component: {fileID: 3617554986088033871}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: FireExplosion
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -19442,7 +19442,7 @@ ParticleSystem:
       serializedVersion: 2
       minMaxState: 0
       minColor: {r: 1, g: 1, b: 1, a: 1}
-      maxColor: {r: 1, g: 1, b: 1, a: 1}
+      maxColor: {r: 1, g: 0.24705882, b: 0, a: 1}
       maxGradient:
         serializedVersion: 2
         key0: {r: 1, g: 1, b: 1, a: 1}
@@ -23981,7 +23981,7 @@ ParticleSystemRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 7c707bedfbf7942459e20471e6f8d740, type: 2}
+  - {fileID: 2100000, guid: f4f1a795a3f0742f9923324de69d6dbe, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -24046,7 +24046,7 @@ GameObject:
   - component: {fileID: 341792580044458683}
   - component: {fileID: 6607283570676894065}
   - component: {fileID: 7414169560244525659}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: FireRockDebris
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -24223,7 +24223,7 @@ ParticleSystem:
       serializedVersion: 2
       minMaxState: 0
       minColor: {r: 1, g: 1, b: 1, a: 1}
-      maxColor: {r: 1, g: 1, b: 1, a: 1}
+      maxColor: {r: 0.509434, g: 0.2113766, b: 0, a: 1}
       maxGradient:
         serializedVersion: 2
         key0: {r: 1, g: 1, b: 1, a: 1}
@@ -28762,7 +28762,7 @@ ParticleSystemRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 5ebadb3a85da1d54297d8a21786bec58, type: 2}
+  - {fileID: 2100000, guid: f4f1a795a3f0742f9923324de69d6dbe, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -28827,7 +28827,7 @@ GameObject:
   - component: {fileID: 8816226044159706276}
   - component: {fileID: 7873265703988384914}
   - component: {fileID: 3649794193270228079}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: FireSparks
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -29021,7 +29021,7 @@ ParticleSystem:
       serializedVersion: 2
       minMaxState: 0
       minColor: {r: 1, g: 1, b: 1, a: 1}
-      maxColor: {r: 1, g: 1, b: 1, a: 1}
+      maxColor: {r: 1, g: 0.65787446, b: 0, a: 1}
       maxGradient:
         serializedVersion: 2
         key0: {r: 1, g: 1, b: 1, a: 1}
@@ -33569,7 +33569,7 @@ ParticleSystemRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 5ebadb3a85da1d54297d8a21786bec58, type: 2}
+  - {fileID: 2100000, guid: f4f1a795a3f0742f9923324de69d6dbe, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0

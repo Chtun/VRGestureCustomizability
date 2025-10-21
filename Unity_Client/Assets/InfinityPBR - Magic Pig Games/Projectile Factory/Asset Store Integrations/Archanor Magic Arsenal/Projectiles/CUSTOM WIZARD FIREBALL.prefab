@@ -223,7 +223,7 @@ ParticleSystem:
       serializedVersion: 2
       minMaxState: 0
       minColor: {r: 1, g: 1, b: 1, a: 1}
-      maxColor: {r: 0.509434, g: 0.509434, b: 0.509434, a: 0.49803922}
+      maxColor: {r: 0.4433962, g: 0.4433962, b: 0.4433962, a: 0.49803922}
       maxGradient:
         serializedVersion: 2
         key0: {r: 1, g: 1, b: 1, a: 1}
@@ -4758,7 +4758,7 @@ ParticleSystemRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: b4a3cd532f543a4448281dc9c13d9aec, type: 2}
+  - {fileID: 2100000, guid: f4f1a795a3f0742f9923324de69d6dbe, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -9498,7 +9498,7 @@ ParticleSystemRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 5ebadb3a85da1d54297d8a21786bec58, type: 2}
+  - {fileID: 2100000, guid: f4f1a795a3f0742f9923324de69d6dbe, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -14274,7 +14274,7 @@ ParticleSystemRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 7c707bedfbf7942459e20471e6f8d740, type: 2}
+  - {fileID: 2100000, guid: f4f1a795a3f0742f9923324de69d6dbe, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -14560,7 +14560,7 @@ ParticleSystem:
       serializedVersion: 2
       minMaxState: 0
       minColor: {r: 1, g: 1, b: 1, a: 1}
-      maxColor: {r: 1, g: 0.1882353, b: 0.023584902, a: 0.79607844}
+      maxColor: {r: 1, g: 0.2216981, b: 0.23619863, a: 0.79607844}
       maxGradient:
         serializedVersion: 2
         key0: {r: 1, g: 1, b: 1, a: 1}
@@ -19193,6 +19193,7 @@ ParticleSystemRenderer:
   m_RendererPriority: 0
   m_Materials:
   - {fileID: 2100000, guid: f4f1a795a3f0742f9923324de69d6dbe, type: 2}
+  - {fileID: 0}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -19265,14 +19266,14 @@ Rigidbody:
     m_Bits: 0
   m_ExcludeLayers:
     serializedVersion: 2
-    m_Bits: 0
+    m_Bits: 128
   m_ImplicitCom: 1
   m_ImplicitTensor: 1
   m_UseGravity: 0
   m_IsKinematic: 0
   m_Interpolate: 0
   m_Constraints: 0
-  m_CollisionDetection: 0
+  m_CollisionDetection: 1
 --- !u!135 &1708425416081021286
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -19321,7 +19322,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 341af7b26d3e93643a130fa6dba4b0fa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: '::'
-  impactEffectPrefab: {fileID: 0}
+  impactEffectPrefab: {fileID: 2069374701864952028, guid: 395743c08fcb25e469048a63af1bd5ca, type: 3}
   damage: 10
 --- !u!1 &6079977091338030780
 GameObject:

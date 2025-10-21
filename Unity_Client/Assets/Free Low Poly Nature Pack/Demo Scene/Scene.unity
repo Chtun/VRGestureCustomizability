@@ -4589,7 +4589,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 693710903}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: SpellSpawnPoint
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -5517,7 +5517,7 @@ GameObject:
   - component: {fileID: 963194227}
   - component: {fileID: 963194226}
   - component: {fileID: 963194229}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Main Camera
   m_TagString: MainCamera
   m_Icon: {fileID: 0}
@@ -6753,7 +6753,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1166327162}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: LeftHandController
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -7821,7 +7821,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1295692135}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: RightHandController
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -8036,7 +8036,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1327174316}
   - component: {fileID: 1327174317}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: FireballCaster
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -11138,7 +11138,7 @@ GameObject:
   - component: {fileID: 1714348554}
   - component: {fileID: 1714348553}
   - component: {fileID: 1714348552}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: PLAYER
   m_TagString: Untagged
   m_Icon: {fileID: 0}
