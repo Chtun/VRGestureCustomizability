@@ -12372,7 +12372,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerMovement
   speed: 5
-  mouseSensitivity: 150
+  mouseSensitivity: 100
 --- !u!136 &1714348553
 CapsuleCollider:
   m_ObjectHideFlags: 0

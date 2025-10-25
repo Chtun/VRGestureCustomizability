@@ -9578,6 +9578,7 @@ GameObject:
   - component: {fileID: 8553879374849716561}
   - component: {fileID: 2513265753233904601}
   - component: {fileID: 2458575547175657412}
+  - component: {fileID: -6909438853262517625}
   m_Layer: 6
   m_Name: CUSTOM FIREBALL EXPLOSION
   m_TagString: Untagged
@@ -14497,6 +14498,18 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &-6909438853262517625
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2069374701864952028}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e975d2d03a227e2419a5a2e485a5c813, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AutoDestroyAfterEffect
 --- !u!1 &4276038123392409900
 GameObject:
   m_ObjectHideFlags: 0
