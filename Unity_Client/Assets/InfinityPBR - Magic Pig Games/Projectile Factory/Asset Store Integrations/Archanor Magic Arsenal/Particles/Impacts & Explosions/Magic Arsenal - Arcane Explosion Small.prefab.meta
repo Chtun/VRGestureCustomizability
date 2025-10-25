@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: a969415e62eed4250909de424101354d
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 282087
+  packageName: Projectile Factory for Magic Arsenal by Archanor VFX
+  packageVersion: 1.0.2
+  assetPath: Assets/InfinityPBR - Magic Pig Games/Projectile Factory/Asset Store
+    Integrations/Archanor Magic Arsenal/Particles/Impacts & Explosions/Magic Arsenal
+    - Arcane Explosion Small.prefab
+  uploadId: 657284

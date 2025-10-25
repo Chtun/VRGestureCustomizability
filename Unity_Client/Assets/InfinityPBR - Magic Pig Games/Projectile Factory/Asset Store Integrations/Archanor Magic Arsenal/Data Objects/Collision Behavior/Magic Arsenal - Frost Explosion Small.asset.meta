@@ -1,0 +1,17 @@
+fileFormatVersion: 2
+guid: e20942e571dd8433783e53f4d97f9e9d
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 11400000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 282087
+  packageName: Projectile Factory for Magic Arsenal by Archanor VFX
+  packageVersion: 1.0.2
+  assetPath: Assets/InfinityPBR - Magic Pig Games/Projectile Factory/Asset Store
+    Integrations/Archanor Magic Arsenal/Data Objects/Collision Behavior/Magic Arsenal
+    - Frost Explosion Small.asset
+  uploadId: 657284

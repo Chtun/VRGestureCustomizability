@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: b431369dcad2c40f8b55a488a0fc669f
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 282087
+  packageName: Projectile Factory for Magic Arsenal by Archanor VFX
+  packageVersion: 1.0.2
+  assetPath: Assets/InfinityPBR - Magic Pig Games/Projectile Factory/Asset Store
+    Integrations/Archanor Magic Arsenal/Particles/Impacts & Explosions/Magic Arsenal
+    - Lightning Sphere Blast.prefab
+  uploadId: 657284

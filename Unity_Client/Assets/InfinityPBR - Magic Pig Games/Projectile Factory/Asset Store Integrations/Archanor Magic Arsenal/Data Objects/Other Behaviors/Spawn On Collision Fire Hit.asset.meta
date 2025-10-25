@@ -1,0 +1,17 @@
+fileFormatVersion: 2
+guid: 4a65d781bd7b04b1a8a206e19d53d9dc
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 11400000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 282087
+  packageName: Projectile Factory for Magic Arsenal by Archanor VFX
+  packageVersion: 1.0.2
+  assetPath: Assets/InfinityPBR - Magic Pig Games/Projectile Factory/Asset Store
+    Integrations/Archanor Magic Arsenal/Data Objects/Other Behaviors/Spawn On Collision
+    Fire Hit.asset
+  uploadId: 657284

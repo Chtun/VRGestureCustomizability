@@ -1,0 +1,17 @@
+fileFormatVersion: 2
+guid: fa092531d23d64f2e996b1da7740f21b
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 11400000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 282087
+  packageName: Projectile Factory for Magic Arsenal by Archanor VFX
+  packageVersion: 1.0.2
+  assetPath: Assets/InfinityPBR - Magic Pig Games/Projectile Factory/Asset Store
+    Integrations/Archanor Magic Arsenal/Data Objects/Collision Behavior/Magic Arsenal
+    - Light Explosion Tiny.asset
+  uploadId: 657284

@@ -135,3 +135,33 @@ Unity_VR_Template/Library/
 Unity_VR_Template/UserSettings/
 Unity_VR_Template/Assets/XR/
 Unity_VR_Template/Temp
+# --- Unity ---
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Mm]emoryCaptures/
+UserSettings/
+*.csproj
+*.sln
+*.user
+*.vsconfig
+*.pidb
+*.unityproj
+*.suo
+*.tmp
+*.userprefs
+sysinfo.txt
+*.booproj
+.DS_Store
+Thumbs.db
+.vs/
+.idea/
+
+# --- OS-specific ---
+*.swp
+*.bak
+*.tmp
+*.orig
