@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: 70b122c0c3b5a488c9258247f5cf3dcd
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 282087
+  packageName: Projectile Factory for Magic Arsenal by Archanor VFX
+  packageVersion: 1.0.2
+  assetPath: Assets/InfinityPBR - Magic Pig Games/Projectile Factory/Asset Store
+    Integrations/Archanor Magic Arsenal/Particles/Impacts & Explosions/Magic Arsenal
+    - Storm Explosion Normal.prefab
+  uploadId: 657284
