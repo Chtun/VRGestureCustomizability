@@ -4,34 +4,44 @@ using UnityEngine.UI;
 
 public class MainUIController : MonoBehaviour
 {
-	[Header("Gesture Scene Buttons")]
+	[Header("Navigation Buttons")]
 	[SerializeField] private Button gestureRecordingButton;
 	[SerializeField] private Button gesturePracticeButton;
-
-	[Header("Game & Puzzle Scene Buttons")]
 	[SerializeField] private Button gameButton;
 	[SerializeField] private Button puzzleButton;
 
-	[Header("Toggle System Buttons")]
+	[Header("Toggle Gesture System Buttons")]
 	[SerializeField] private Button defaultSystemButton;
 	[SerializeField] private Button userDefinedSystemButton;
+
+	[SerializeField] private GestureSystemManager _gestureSystemManager;
+	[SerializeField] private SceneTransitionManager _sceneTransitionManager;
 
 	private Color selectedColor = Color.green;
 	private Color unselectedColor = Color.white;
 
-	private bool useDefaultSystem;
+	private string scriptName = "MainMenuManager";
 
 	private void Awake()
 	{
-		// Optional: Validate references
+		// Validate references
 		if (gestureRecordingButton == null) Debug.LogWarning("GestureRecording not assigned!");
 		if (gesturePracticeButton == null) Debug.LogWarning("GesturePractice not assigned!");
 		if (gameButton == null) Debug.LogWarning("GameButton not assigned!");
 		if (puzzleButton == null) Debug.LogWarning("PuzzleButton not assigned!");
 		if (defaultSystemButton == null) Debug.LogWarning("DefaultToggle not assigned!");
 		if (userDefinedSystemButton == null) Debug.LogWarning("UserDefinedToggle not assigned!");
-	}
 
+		if (_gestureSystemManager == null)
+			_gestureSystemManager = FindFirstObjectByType<GestureSystemManager>();
+		if (_gestureSystemManager == null)
+			Debug.LogError($"[{scriptName}] GestureSystemManager not found!");
+
+		if (_sceneTransitionManager == null)
+			_sceneTransitionManager = FindFirstObjectByType<SceneTransitionManager>();
+		if (_sceneTransitionManager == null)
+			Debug.LogError($"[{scriptName}] SceneTransitionManager not found!");
+	}
 	private void Start()
 	{
 		// Bind button click events
@@ -42,44 +52,46 @@ public class MainUIController : MonoBehaviour
 		defaultSystemButton.onClick.AddListener(OnDefaultSystemButtonPressed);
 		userDefinedSystemButton.onClick.AddListener(OnUserDefinedSystemButtonPressed);
 
-		SetUseDefaultSystem(true);
+		SetGestureSystemType(true);
 	}
 
 	#region Button Handlers
+
 	private void OnGestureRecordingButtonPressed()
 	{
 		Debug.Log("Changing to Gesture Recording scene!");
-		// TODO: Change scene
+
+		_sceneTransitionManager.LoadScene("GestureRecording");
 	}
 
 	private void OnGesturePracticeButtonPressed()
 	{
 		Debug.Log("Changing to Gesture Practice scene!");
-		// TODO: Change scene
+		_sceneTransitionManager.LoadScene("GesturePractice");
 	}
 
 	private void OnGameButtonPressed()
 	{
 		Debug.Log("Changing to Game scene!");
-		// TODO: Change scene
+		_sceneTransitionManager.LoadScene("WizardGame");
 	}
 
 	private void OnPuzzleButtonPressed()
 	{
 		Debug.Log("Changing to Puzzle scene!");
-		// TODO: Change scene
+		_sceneTransitionManager.LoadScene("Puzzle");
 	}
 
 	private void OnDefaultSystemButtonPressed()
 	{
 		Debug.Log("Using default system now!");
-		SetUseDefaultSystem(true);
+		SetGestureSystemType(true);
 	}
 
 	private void OnUserDefinedSystemButtonPressed()
 	{
 		Debug.Log("Using user-defined system now!");
-		SetUseDefaultSystem(false);
+		SetGestureSystemType(false);
 	}
 
 	#endregion
@@ -88,15 +100,22 @@ public class MainUIController : MonoBehaviour
 	/// Updates the useDefaultSystem flag and changes button visuals.
 	/// </summary>
 	/// <param name="useDefault">If true, selects default system; otherwise user-defined.</param>
-	private void SetUseDefaultSystem(bool useDefault)
+	private void SetGestureSystemType(bool useDefault)
 	{
-		useDefaultSystem = useDefault;
+		if (_gestureSystemManager != null)
+		{
+			_gestureSystemManager.useDefaultSystem = useDefault;
 
-		// Deselect the button immediately so it doesn't stay bright
-		EventSystem.current.SetSelectedGameObject(null);
+			// Deselect the button immediately so it doesn't stay bright
+			EventSystem.current.SetSelectedGameObject(null);
 
-		// Update button colors to indicate selection
-		defaultSystemButton.image.color = useDefaultSystem ? selectedColor : unselectedColor;
-		userDefinedSystemButton.image.color = useDefaultSystem ? unselectedColor : selectedColor;
+			// Update button colors to indicate selection
+			defaultSystemButton.image.color = _gestureSystemManager.useDefaultSystem ? selectedColor : unselectedColor;
+			userDefinedSystemButton.image.color = _gestureSystemManager.useDefaultSystem ? unselectedColor : selectedColor;
+		}
+		else
+		{
+			Debug.LogError($"[{scriptName}] Gesture system type could not be set since GestureSystemManager reference is null!");
+		}
 	}
 }

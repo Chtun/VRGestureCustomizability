@@ -1,94 +1,53 @@
-using Newtonsoft.Json.Linq;
-using System;
-using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class GesturePracticeManager : MonoBehaviour
 {
-	[SerializeField] private GestureHTTPClient gestureHTTPClient;
-	[SerializeField] private GestureWebSocketStreamer gestureWebSocketStreamer;
-	[SerializeField] private GestureRecognitionUI gestureRecognitionUI;
+	[SerializeField] private GestureSystemManager _gestureSystemManager;
+	[SerializeField] private SceneTransitionManager _sceneTransitionManager;
 
-	private bool isUIInitialized = false;
+	private string scriptName = "GesturePracticeManager";
+
+	[Header("Navigation Buttons")]
+	[SerializeField] private Button backButton;
+	[SerializeField] private string backButtonName = "BackButton";
 
 	void Awake()
 	{
-		// Auto-find clients if not assigned
-		if (gestureHTTPClient == null)
-			gestureHTTPClient = FindFirstObjectByType<GestureHTTPClient>();
-		if (gestureHTTPClient == null)
-			Debug.LogError("[GesturePracticeManager] GestureHTTPClient not found!");
+		if (_gestureSystemManager == null)
+			_gestureSystemManager = FindFirstObjectByType<GestureSystemManager>();
+		if (_gestureSystemManager == null)
+			Debug.LogError($"[{scriptName}] GestureSystemManager not found!");
+		else
+		{
+			_gestureSystemManager.StartGestureRecognition();
+		}
 
-		if (gestureWebSocketStreamer == null)
-			gestureWebSocketStreamer = FindFirstObjectByType<GestureWebSocketStreamer>();
-		if (gestureWebSocketStreamer == null)
-			Debug.LogError("[GesturePracticeManager] GestureWebSocketStreamer not found!");
+		if (_sceneTransitionManager == null)
+			_sceneTransitionManager = FindFirstObjectByType<SceneTransitionManager>();
+		if (_sceneTransitionManager == null)
+			Debug.LogError($"[{scriptName}] SceneTransitionManager not found!");
 
-		if (gestureRecognitionUI == null)
-			gestureRecognitionUI = FindFirstObjectByType<GestureRecognitionUI>();
-		if (gestureRecognitionUI == null)
-			Debug.LogError("[GesturePracticeManager] GestureRecognitionUI not found!");
-
-		if (gestureWebSocketStreamer != null)
-			gestureWebSocketStreamer.OnGestureDataReceived += HandleGestureMessage;
+		if (backButton == null)
+			backButton = GameObject.Find(backButtonName).GetComponent<Button>();
+		if (backButton == null)
+			Debug.LogError($"[{scriptName}] BackButton not found!");
 	}
 
 	void Start()
 	{
-		if (gestureHTTPClient != null)
-			StartCoroutine(gestureHTTPClient.GetGestures(OnGesturesFetched));
+		backButton.onClick.AddListener(OnBackButtonPressed);
 	}
 
-	private void OnGesturesFetched(string jsonResponse)
+	private void OnBackButtonPressed()
 	{
-		if (!string.IsNullOrEmpty(jsonResponse))
-			Debug.Log("[GesturePracticeManager] Gestures loaded.");
-		else
-			Debug.LogError("[GesturePracticeManager] Failed to load gestures.");
+		Debug.Log("Returning to Main Menu scene!");
+		_sceneTransitionManager.LoadScene("MainMenu");
 	}
 
-	private void HandleGestureMessage(string json)
+	private void OnDestroy()
 	{
-		try
-		{
-			var obj = JObject.Parse(json);
-
-			// The backend now sends: {"gesture_results": {"wave": [0.23, true], "fist": [0.87, false], ...}}
-			var resultsToken = obj["gesture_results"];
-			if (resultsToken == null)
-			{
-				Debug.LogWarning("No gesture_results found in message.");
-				return;
-			}
-
-			// Convert to a dictionary of string -> (float distance, bool matched)
-			var gestureDict = new Dictionary<string, (float distance, bool matched)>();
-			foreach (var prop in resultsToken.Children<JProperty>())
-			{
-				string key = prop.Name;
-				JArray valueArray = prop.Value as JArray;
-				if (valueArray != null && valueArray.Count == 2)
-				{
-					float distance = valueArray[0].Value<float>();
-					bool matched = valueArray[1].Value<bool>();
-					gestureDict[key] = (distance, matched);
-				}
-			}
-
-			// Initialize the UI if not done yet
-			if (!isUIInitialized)
-			{
-				gestureRecognitionUI.InitializeGestures(gestureDict);
-				isUIInitialized = true;
-			}
-			else
-			{
-				gestureRecognitionUI.UpdateGestures(gestureDict);
-			}
-		}
-		catch (Exception ex)
-		{
-			Debug.LogError($"Failed to parse gesture JSON: {ex}");
-		}
+		_gestureSystemManager.EndGestureRecognition();
 	}
+
 }

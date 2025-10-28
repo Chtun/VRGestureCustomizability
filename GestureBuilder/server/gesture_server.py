@@ -68,6 +68,8 @@ vqvae_model.eval()
 
 # === Gesture templates storage: dict of lists ===
 gesture_templates: Dict[str, List[Dict[str, torch.Tensor]]] = {}
+num_templates = 0
+MAX_NUM_TEMPLATES = 15
 
 # === Load all gesture sequences ===
 for pair in gesture_template_paths:
@@ -219,10 +221,24 @@ async def websocket_endpoint(websocket: WebSocket):
         if websocket.client_state != "DISCONNECTED":
             await websocket.close()
 
+add_gesture_statuses = {
+    "OK": 0,
+    "Max Templates Hit": 1,
+    "Too Similar To Other": 2,
+    "Too Different From Group": 3,
+    "Internal Error": -1
+}
 
 @app.post("/add_gesture")
 async def add_gesture(gesture: GestureInput):
     try:
+        # === Check that there are fewer than the max number of templates ===
+        if num_templates >= MAX_NUM_TEMPLATES:
+            return {
+            "status_code": add_gesture_statuses["Max Templates Hit"],
+            "message": f"The maximum number of templates in the system has already been hit. Delete one to proceed.",
+            }
+
         # === Validate sequence lengths ===
         seq_len_left_joints = len(gesture.left_joints)
         seq_len_right_joints = len(gesture.right_joints)
@@ -262,16 +278,60 @@ async def add_gesture(gesture: GestureInput):
 
         if gesture.label not in gesture_templates:
             gesture_templates[gesture.label] = []
+
+
+        for gesture_key in gesture_templates.keys():
+            # Check that the input gesture is not too close to gestures in other groups.
+            if gesture_key != gesture.label:
+                for template in gesture_templates[gesture_key]:
+                    if sequence_distance(
+                        vqvae_model,
+                        gesture_dict["left_hand_vectors"],
+                        gesture_dict["right_hand_vectors"],
+                        gesture_dict["left_wrist_root"],
+                        gesture_dict["right_wrist_root"],
+                        template["left_hand_vectors"],
+                        template["right_hand_vectors"],
+                        template["left_wrist_root"],
+                        template["right_wrist_root"]
+                    ) < 2 * MATCH_THRESHOLD:
+                        return {
+                            "status_code": add_gesture_statuses["Too Similar To Other"],
+                            "message": f"Gesture '{gesture.label}' is too similar to another gesture '{gesture_key}' in the system.",
+                        }
+            # Check that the input gesture is not close to gestures in its group.
+            else:
+                for template in gesture_templates[gesture_key]:
+                    if sequence_distance(
+                        vqvae_model,
+                        gesture_dict["left_hand_vectors"],
+                        gesture_dict["right_hand_vectors"],
+                        gesture_dict["left_wrist_root"],
+                        gesture_dict["right_wrist_root"],
+                        template["left_hand_vectors"],
+                        template["right_hand_vectors"],
+                        template["left_wrist_root"],
+                        template["right_wrist_root"]
+                    ) > 3 * MATCH_THRESHOLD:
+                        return {
+                            "status_code": add_gesture_statuses["Too Different From Group"],
+                            "message": f"Gesture '{gesture.label}' was too far away from another template in its group.",
+                        }
+
+
+
         gesture_templates[gesture.label].append(gesture_dict)
 
         return {
-            "status": "ok",
-            "message": f"Gesture '{gesture.label}' added",
-            "total_examples": len(gesture_templates[gesture.label]),
+            "status_code": add_gesture_statuses["OK"],
+            "message": f"Gesture '{gesture.label}' added.",
         }
 
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        return {
+            "status_code": add_gesture_statuses["Internal Error"],
+            "message": f"Internal Error: {str(e)}"
+        }
 
 
 @app.get("/get_gestures")

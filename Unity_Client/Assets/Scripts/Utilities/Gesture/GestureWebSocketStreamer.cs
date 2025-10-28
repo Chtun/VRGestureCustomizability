@@ -22,16 +22,31 @@ public class GestureWebSocketStreamer : MonoBehaviour
 	[SerializeField] private bool isStreaming = false;
 	private CancellationTokenSource cts;
 
-	// ✅ Add an Action to forward received messages
+	// Add an Action to forward received messages
 	public Action<string> OnGestureDataReceived;
 
-	private void Start()
+	private void Awake()
 	{
 		Config config = Config.LoadConfig();
 		serverUrl = config.GetWSURL();
 		Debug.Log($"Loaded server URL from config: {serverUrl}");
+	}
+
+	public void Connect()
+	{
+		// Already connected? Do nothing
+		if (ws != null && ws.State == WebSocketState.Open)
+			return;
+
+		if (isStreaming)
+		{
+			Debug.LogWarning("WebSocket already streaming, connect ignored.");
+			return;
+		}
+
 		StartCoroutine(WaitForTrackingThenConnect());
 	}
+
 
 	private IEnumerator WaitForTrackingThenConnect()
 	{
@@ -41,6 +56,41 @@ public class GestureWebSocketStreamer : MonoBehaviour
 		Debug.Log("Hands tracked — connecting to gesture WebSocket server...");
 		ConnectWebSocket();
 	}
+
+	public void Disconnect()
+	{
+		if (!isStreaming && (ws == null || ws.State != WebSocketState.Open))
+			return;
+
+		Debug.Log("Disconnecting from WebSocket...");
+
+		isStreaming = false;
+		cts?.Cancel();
+
+		StartCoroutine(DisconnectCoroutine());
+	}
+
+	private IEnumerator DisconnectCoroutine()
+	{
+		if (ws != null)
+		{
+			if (ws.State == WebSocketState.Open)
+			{
+				var task = ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Client disconnecting", CancellationToken.None);
+				while (!task.IsCompleted)
+					yield return null;
+
+				Debug.Log("WebSocket disconnected.");
+			}
+
+			ws.Dispose();
+			ws = null;
+		}
+
+		cts?.Dispose();
+		cts = null;
+	}
+
 
 	private bool IsBothHandsTracked()
 	{
@@ -111,10 +161,10 @@ public class GestureWebSocketStreamer : MonoBehaviour
 				{
 					string message = Encoding.UTF8.GetString(buffer, 0, result.Count);
 
-					// ✅ Print the message
+					// Print the message
 					Debug.Log($"Received from server: {message}");
 
-					// ✅ Pass it along via Action if assigned
+					// Pass it along via Action if assigned
 					OnGestureDataReceived?.Invoke(message);
 				}
 			}
@@ -190,23 +240,8 @@ public class GestureWebSocketStreamer : MonoBehaviour
 	}
 
 
-	private async void OnDestroy()
+	private void OnDestroy()
 	{
-		isStreaming = false;
-		if (ws != null)
-		{
-			try
-			{
-				if (ws.State == WebSocketState.Open)
-					await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
-			}
-			catch { }
-			ws.Dispose();
-			ws = null;
-		}
-
-		cts?.Cancel();
-		cts?.Dispose();
-		cts = null;
+		Disconnect();
 	}
 }

@@ -33,6 +33,7 @@ public class InputManager : MonoBehaviour
 
 	public void TakeAction(ActionType actionType)
 	{
+		Debug.Log($"Taking action: {actionType.ToString()}");
 		switch (actionType)
 		{
 			case ActionType.CastFireball:
@@ -41,6 +42,8 @@ public class InputManager : MonoBehaviour
 				CastTeleport(); break;
 			case ActionType.ShowTeleport:
 				ShowTeleport(); break;
+			case ActionType.Inactivated:
+				break;
 		}
 	}
 
@@ -65,4 +68,6 @@ public enum ActionType
 	CastFireball,
 	ShowTeleport,
 	CastTeleport,
+
+	Inactivated,
 }

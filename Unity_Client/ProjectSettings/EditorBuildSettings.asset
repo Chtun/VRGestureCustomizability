@@ -5,9 +5,21 @@ EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Scenes:
-  - enabled: 1
-    path: Assets/Scenes/GestureTest/GestureRecording.unity
+  - enabled: 0
+    path: Assets/Scenes/GestureTest/GestureRecordingTest.unity
     guid: 55daccc09a3b69647bbab145b54a3ab3
+  - enabled: 1
+    path: Assets/Scenes/Taskflow/MainMenu.unity
+    guid: afe7f332615ec7b4283878e2b6780abc
+  - enabled: 1
+    path: Assets/Scenes/Taskflow/WizardGame.unity
+    guid: 0baa9613969368a41b12e328b6eeeced
+  - enabled: 1
+    path: Assets/Scenes/Taskflow/GestureRecording.unity
+    guid: 6a5c3353bab192f40a1faef5b1fc7db3
+  - enabled: 1
+    path: Assets/Scenes/Taskflow/GesturePractice.unity
+    guid: 32f0a55cc616a26419a06c8f07cabbcf
   m_configObjects:
     Unity.XR.Oculus.Settings: {fileID: 11400000, guid: bfa1182bd221b4ca89619141f66f1260, type: 2}
     Unity.XR.WindowsMR.Settings: {fileID: 11400000, guid: dc5a169419fa04987b057f65238cf3ba, type: 2}

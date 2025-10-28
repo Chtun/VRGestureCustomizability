@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.InputSystem; // Necessary for InputAction
 
 public class TeleportController : MonoBehaviour
 {
@@ -51,30 +50,6 @@ public class TeleportController : MonoBehaviour
 			inputManager.OnTeleportAim -= HandleTeleportAiming;
 			inputManager.OnTeleportCast -= HandleTeleportActivation;
 		}
-	}
-
-	// --- Action Event Handlers ---
-
-	private void OnAimPerformed(InputAction.CallbackContext context)
-	{
-		// This runs the moment the Aim key is held down (Input.GetKey(aimKey) equivalent)
-		// We put the aiming logic here, but it needs to run every frame, so we still use Update/LateUpdate
-		Debug.Log("Aim key pressed/held!");
-	}
-
-	private void OnAimCanceled(InputAction.CallbackContext context)
-	{
-		// This runs the moment the Aim key is released
-		if (teleportIndicator != null)
-			teleportIndicator.SetActive(false);
-		validTarget = false;
-	}
-
-	private void OnTeleportPerformed(InputAction.CallbackContext context)
-	{
-		// This runs the moment the Teleport key is pressed (Input.GetKeyDown(teleportKey) equivalent)
-		HandleTeleportActivation();
-		Debug.Log("Teleport key pressed!");
 	}
 
 	private bool targetLocked = false; // new: lock the target while aiming

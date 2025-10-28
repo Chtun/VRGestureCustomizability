@@ -2,8 +2,10 @@ using Oculus.Interaction.Input;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class JointDataGather : MonoBehaviour
 {
@@ -13,14 +15,71 @@ public class JointDataGather : MonoBehaviour
 
 	[SerializeField] private float timeBetweenSamples = 0.1f;
 	[SerializeField] private string outputCSVName;
+	[SerializeField] private static string liveOutputCSVPrefix = "live_recordings";
 	[SerializeField] private bool isRecording = false;
+	public bool IsRecording => isRecording;
 
-	public void StartRecording()
+	[Header("Hand Search Settings")]
+	[SerializeField] private string leftHandName = "LeftInteractions";
+	[SerializeField] private string rightHandName = "RightInteractions";
+
+
+	private string scriptName = "JointDataGather";
+
+	private void OnEnable()
 	{
+		// Subscribe to scene load events
+		SceneManager.sceneLoaded += OnSceneLoaded;
+
+		// Also refresh hands immediately in case we're already in a scene
+		RefreshHandReferences();
+	}
+
+	private void OnDisable()
+	{
+		// Unsubscribe to avoid memory leaks
+		SceneManager.sceneLoaded -= OnSceneLoaded;
+	}
+
+	private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+	{
+		RefreshHandReferences();
+	}
+
+	private void RefreshHandReferences()
+	{
+		// Find left hand
+		if (leftHand == null)
+		{
+			Transform leftTransform = GameObject.Find(leftHandName).transform;
+			if (leftTransform != null)
+				leftHand = leftTransform.GetComponent<Hand>();
+			else
+				Debug.LogError($"[{scriptName}] Left hand '{leftHandName}' not found!");
+		}
+
+		// Find right hand
+		if (rightHand == null)
+		{
+			Transform rightTransform = GameObject.Find(rightHandName).transform;
+			if (rightTransform != null)
+				rightHand = rightTransform.GetComponent<Hand>();
+			else
+				Debug.LogError($"[{scriptName}] Right hand '{rightHandName}' not found!");
+		}
+	}
+
+	private void StartRecording(string label = null)
+	{
+		if (label != null)
+		{
+			outputCSVName = GetRecordedCSVName(label);
+		}
+
 		if (!isRecording)
 		{
 			isRecording = true;
-			StartCoroutine(RecordDataLoop());
+			StartCoroutine(RecordDataLoop(label));
 		}
 	}
 
@@ -29,11 +88,21 @@ public class JointDataGather : MonoBehaviour
 		isRecording = false;
 	}
 
-	private IEnumerator RecordDataLoop()
+	public static string GetRecordedCSVPath(string label)
+	{
+		return Path.Combine(Application.persistentDataPath, $"{GetRecordedCSVName(label)}.csv");
+	}
+
+	public static string GetRecordedCSVName(string label)
+	{
+		return $"{liveOutputCSVPrefix}-{label}";
+	}
+
+	private IEnumerator RecordDataLoop(string label = null)
 	{
 		while (isRecording)
 		{
-			RecordData();
+			RecordData(label);
 			yield return new WaitForSeconds(timeBetweenSamples); // repeat after the specified time between samples.
 		}
 	}
@@ -251,9 +320,19 @@ public class JointDataGather : MonoBehaviour
 	}
 
 
-	private void RecordData()
+	private void RecordData(string label = null)
 	{
-		string outputPath = Path.Combine(Application.persistentDataPath, $"{outputCSVName}.csv");
+		string outputPath;
+		if (string.IsNullOrEmpty(label))
+		{
+			outputPath = Path.Combine(Application.persistentDataPath, $"{outputCSVName}.csv");
+		}
+		else
+		{
+			outputPath = GetRecordedCSVPath(label);
+		}
+
+
 		Debug.Log("CSV path: " + outputPath);
 
 
@@ -271,24 +350,137 @@ public class JointDataGather : MonoBehaviour
 		WriteData(currentLeftJointPoses, currentRightJointPoses, currentLeftRootPose, currentRightRootPose, outputPath);
 	}
 
-
-	void Start()
+	public IEnumerator WaitForHandsThenRecord(string label = null)
 	{
-		// Start a coroutine that waits for tracking before recording
-		StartCoroutine(WaitForHandsThenRecord());
-	}
+		if (leftHand == null || rightHand == null)
+		{
+			Debug.LogError($"[{scriptName}] The left or right hand does not have a proper reference!");
+			RefreshHandReferences();
+			yield return null;
+		}
 
-	private IEnumerator WaitForHandsThenRecord()
-	{
 		// Wait until both hands are tracked
 		while (!leftHand.IsTrackedDataValid || !rightHand.IsTrackedDataValid)
 		{
 			yield return null; // wait for next frame
 		}
 
-		Debug.Log("Both hands are tracked. Starting recording.");
-		StartRecording();
+		Debug.Log($"[{scriptName}] Both hands are tracked. Starting recording.");
+		StartRecording(label);
 	}
+
+	public static GestureInput ReadCSVToGestureInput(string filePath, string gestureLabel)
+	{
+		if (!File.Exists(filePath))
+		{
+			Debug.LogError($"CSV file not found: {filePath}");
+			return null;
+		}
+
+		var lines = File.ReadAllLines(filePath);
+		if (lines.Length < 2)
+		{
+			Debug.LogError("CSV file does not contain enough data.");
+			return null;
+		}
+
+		string[] headers = lines[0].Split(',');
+
+		// Only count position columns for joints
+		List<string> leftJointNames = new List<string>();
+		List<string> rightJointNames = new List<string>();
+
+		foreach (var header in headers)
+		{
+			if (header.StartsWith("L_") && header.Contains("_pos"))
+			{
+				string jointName = header.Substring(2, header.IndexOf("_pos") - 2);
+				if (!leftJointNames.Contains(jointName))
+					leftJointNames.Add(jointName);
+			}
+			else if (header.StartsWith("R_") && header.Contains("_pos"))
+			{
+				string jointName = header.Substring(2, header.IndexOf("_pos") - 2);
+				if (!rightJointNames.Contains(jointName))
+					rightJointNames.Add(jointName);
+			}
+		}
+
+		int numLeftJoints = leftJointNames.Count;  // Should be 24
+		int numRightJoints = rightJointNames.Count; // Should be 24
+
+		var leftJoints = new List<List<List<float>>>();
+		var rightJoints = new List<List<List<float>>>();
+		var leftWrist = new List<List<float>>();
+		var rightWrist = new List<List<float>>();
+
+		for (int i = 1; i < lines.Length; i++)
+		{
+			string[] cols = lines[i].Split(',');
+			int colIndex = 1; // skip Timestamp
+
+			// LEFT hand positions only
+			var leftFrame = new List<List<float>>();
+			for (int j = 0; j < numLeftJoints; j++)
+			{
+				var jointPos = new List<float>
+				{
+					float.Parse(cols[colIndex++], CultureInfo.InvariantCulture), // posX
+                    float.Parse(cols[colIndex++], CultureInfo.InvariantCulture), // posY
+                    float.Parse(cols[colIndex++], CultureInfo.InvariantCulture)  // posZ
+                };
+
+				colIndex += 4; // Skip rotation columns (rotX, rotY, rotZ, rotW)
+				leftFrame.Add(jointPos);
+			}
+			leftJoints.Add(leftFrame);
+
+			// RIGHT hand positions only
+			var rightFrame = new List<List<float>>();
+			for (int j = 0; j < numRightJoints; j++)
+			{
+				var jointPos = new List<float>
+				{
+					float.Parse(cols[colIndex++], CultureInfo.InvariantCulture), // posX
+                    float.Parse(cols[colIndex++], CultureInfo.InvariantCulture), // posY
+                    float.Parse(cols[colIndex++], CultureInfo.InvariantCulture)  // posZ
+                };
+				colIndex += 4; // Skip rotation columns
+				rightFrame.Add(jointPos);
+			}
+			rightJoints.Add(rightFrame);
+
+			// LEFT wrist (root)
+			var leftRoot = new List<float>
+			{
+				float.Parse(cols[colIndex++], CultureInfo.InvariantCulture),
+				float.Parse(cols[colIndex++], CultureInfo.InvariantCulture),
+				float.Parse(cols[colIndex++], CultureInfo.InvariantCulture)
+			};
+			colIndex += 4; // Skip rotation
+			leftWrist.Add(leftRoot);
+
+			// RIGHT wrist (root)
+			var rightRoot = new List<float>
+			{
+				float.Parse(cols[colIndex++], CultureInfo.InvariantCulture),
+				float.Parse(cols[colIndex++], CultureInfo.InvariantCulture),
+				float.Parse(cols[colIndex++], CultureInfo.InvariantCulture)
+			};
+			// skip remaining rotations
+			colIndex += 4;
+			rightWrist.Add(rightRoot);
+		}
+
+		return new GestureInput(
+			gestureLabel,
+			leftJoints,
+			rightJoints,
+			leftWrist,
+			rightWrist
+		);
+	}
+
 
 
 	// To stop:

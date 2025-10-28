@@ -1,4 +1,9 @@
 {
 	"host": "127.0.0.1",
-	"port": "8000"
+	"port": "8000",
+	"defaultGestures": {
+		"Right Jab": "CastFireball",
+		"Left Jab": "CastFireball",
+		"Table Bang": "CastFireball"
+	}
 }

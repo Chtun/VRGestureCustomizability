@@ -1,7 +1,6 @@
 ﻿using Newtonsoft.Json;
 using System;
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Networking;
 
@@ -20,45 +19,14 @@ public class GestureHTTPClient : MonoBehaviour
 		Debug.Log($"Loaded server URL from config: {baseUrl}");
 	}
 
-	// ==========================================================
-	// 🔹 Internal data classes for request and response
-	// ==========================================================
 	[Serializable]
-	public class GestureInput
+	public class AddGestureResponse
 	{
-		public string label;
-		public List<List<List<float>>> left_joints;
-		public List<List<List<float>>> right_joints;
-		public List<List<float>> left_wrist;
-		public List<List<float>> right_wrist;
-
-		public GestureInput(
-			string label,
-			List<List<List<float>>> leftJoints,
-			List<List<List<float>>> rightJoints,
-			List<List<float>> leftWrist,
-			List<List<float>> rightWrist)
-		{
-			this.label = label;
-			this.left_joints = leftJoints;
-			this.right_joints = rightJoints;
-			this.left_wrist = leftWrist;
-			this.right_wrist = rightWrist;
-		}
-	}
-
-	[Serializable]
-	public class GestureResponse
-	{
-		public string status;
+		public int status_code;
 		public string message;
-		public int total_examples;
 	}
 
-	// ==========================================================
-	// 🔹 POST /add_gesture
-	// ==========================================================
-	public IEnumerator AddGesture(GestureInput gesture, Action<string> onComplete = null)
+	public IEnumerator AddGesture(GestureInput gesture, Action<bool> onComplete = null)
 	{
 		string json = JsonConvert.SerializeObject(gesture);
 		byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(json);
@@ -73,19 +41,24 @@ public class GestureHTTPClient : MonoBehaviour
 
 			if (www.result == UnityWebRequest.Result.Success)
 			{
-				Debug.Log($"Gesture added: {www.downloadHandler.text}");
-				onComplete?.Invoke(www.downloadHandler.text);
+				// Parse server response
+				AddGestureResponse response = JsonConvert.DeserializeObject<AddGestureResponse>(www.downloadHandler.text);
+
+				bool success = response.status_code == 0; // 0 = OK
+				Debug.Log($"AddGesture response: {response.message} (Success: {success})");
+
+				onComplete?.Invoke(true);
 			}
 			else
 			{
 				Debug.LogError($"Error adding gesture: {www.error}\n{www.downloadHandler.text}");
-				onComplete?.Invoke(null);
+				onComplete?.Invoke(false);
 			}
 		}
 	}
 
 	// ==========================================================
-	// 🔹 GET /gestures
+	// 🔹 GET /get_gestures
 	// ==========================================================
 	public IEnumerator GetGestures(Action<string> onComplete)
 	{
