@@ -7,6 +7,7 @@ public class InputManager : MonoBehaviour
 	public event System.Action OnTeleportAim;
 	public event System.Action OnTeleportCast;
 	public event System.Action OnFireballCast;
+	public event System.Action OnLightningCast;
 
 
 	void Update()
@@ -29,6 +30,11 @@ public class InputManager : MonoBehaviour
 		{
 			OnFireballCast?.Invoke();
 		}
+
+		if (Keyboard.current.lKey.wasPressedThisFrame)
+        {
+            OnLightningCast?.Invoke();
+        }
 	}
 
 	public void TakeAction(ActionType actionType)
@@ -37,6 +43,8 @@ public class InputManager : MonoBehaviour
 		{
 			case ActionType.CastFireball:
 				CastFireball(); break;
+			case ActionType.CastLightning:
+				CastLightning(); break;
 			case ActionType.CastTeleport:
 				CastTeleport(); break;
 			case ActionType.ShowTeleport:
@@ -58,11 +66,17 @@ public class InputManager : MonoBehaviour
 	{
 		OnTeleportCast?.Invoke();
 	}
+
+	public void CastLightning()
+    {
+        OnLightningCast?.Invoke();
+    }
 }
 
 public enum ActionType
 {
 	CastFireball,
+	CastLightning,
 	ShowTeleport,
 	CastTeleport,
 }

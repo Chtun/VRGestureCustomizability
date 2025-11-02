@@ -2,12 +2,12 @@ using UnityEngine;
 
 public class LightningCaster : MonoBehaviour
 {
-    public GameObject fireballPrefab;
+    public GameObject projectilePrefab;
     public GameObject impactEffectPrefab;
     public Transform spawnPoint;
-    public float fireballSpeed = 25f;
+    public float projectileSpeed = 50f;
     public float lifetime = 5f;
-    public float cooldown = 300f;
+    public float cooldown = 2f;
 
     private InputManager inputManager; // Reference to the Input Manager
     private float lastFireTime = -Mathf.Infinity;
@@ -17,7 +17,7 @@ public class LightningCaster : MonoBehaviour
         inputManager = FindFirstObjectByType<InputManager>();
         if (inputManager == null)
         {
-            Debug.LogError("InputManager not found! FireballCaster cannot subscribe to input events.");
+            Debug.LogError("InputManager not found! LightningCaster cannot subscribe to input events.");
             enabled = false;
         }
     }
@@ -26,7 +26,7 @@ public class LightningCaster : MonoBehaviour
     {
         if (inputManager != null)
         {
-            inputManager.OnFireballCast += TryCastFireball;
+            inputManager.OnLightningCast += TryCastLightning;
         }
     }
 
@@ -34,49 +34,49 @@ public class LightningCaster : MonoBehaviour
     {
         if (inputManager != null)
         {
-            inputManager.OnFireballCast -= TryCastFireball;
+            inputManager.OnLightningCast -= TryCastLightning;
         }
     }
 
-    private void TryCastFireball()
+    private void TryCastLightning()
     {
         float timeSinceLast = Time.time - lastFireTime;
 
         if (timeSinceLast >= cooldown)
         {
-            Debug.Log($"[Fireball] Casting fireball at {Time.time:F2} (cooldown met)");
-            CastFireball();
+            Debug.Log($"[Lightning] Casting lightning at {Time.time:F2} (cooldown met)");
+            CastLightning();
             lastFireTime = Time.time;
         }
         else
         {
             float remaining = cooldown - timeSinceLast;
-            Debug.Log($"[Fireball] Still cooling down ({remaining:F1}s remaining)");
+            Debug.Log($"[Lightning] Still cooling down ({remaining:F1}s remaining)");
         }
     }
 
-    void CastFireball()
+    void CastLightning()
     {
-        if (fireballPrefab == null || spawnPoint == null)
+        if (projectilePrefab == null || spawnPoint == null)
         {
             Debug.LogWarning("Missing prefab or spawn point!");
             return;
         }
 
-        GameObject fireball = Instantiate(fireballPrefab, spawnPoint.position, spawnPoint.rotation);
+        GameObject lightning = Instantiate(projectilePrefab, spawnPoint.position, spawnPoint.rotation);
 
-        var collision = fireball.GetComponent<FireballCollision>();
+        var collision = lightning.GetComponent<LightningCollision>();
         if (collision != null && impactEffectPrefab != null)
             collision.impactEffectPrefab = impactEffectPrefab;
 
-        var rb = fireball.GetComponent<Rigidbody>();
+        var rb = lightning.GetComponent<Rigidbody>();
         if (rb != null)
         {
             Transform cameraTransform = Camera.main.transform;
             Vector3 shootDirection = cameraTransform.forward;
-            rb.linearVelocity = shootDirection * fireballSpeed;
+            rb.linearVelocity = shootDirection * projectileSpeed;
         }
 
-        Destroy(fireball, lifetime);
+        Destroy(lightning, lifetime);
     }
 }
