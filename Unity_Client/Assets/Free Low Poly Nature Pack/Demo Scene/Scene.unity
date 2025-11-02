@@ -11808,7 +11808,7 @@ PrefabInstance:
       objectReference: {fileID: 2100000, guid: f4f1a795a3f0742f9923324de69d6dbe, type: 2}
     - target: {fileID: 1790839267663987007, guid: 4077e8769055d4bdc9a0940d059ca438, type: 3}
       propertyPath: m_Name
-      value: Custom Teleport Indicator
+      value: CustomTeleportIndicator
       objectReference: {fileID: 0}
     - target: {fileID: 4688642081622516515, guid: 4077e8769055d4bdc9a0940d059ca438, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
