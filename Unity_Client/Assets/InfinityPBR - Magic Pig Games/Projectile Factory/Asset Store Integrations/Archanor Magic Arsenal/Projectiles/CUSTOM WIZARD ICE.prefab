@@ -473,7 +473,7 @@ GameObject:
   - component: {fileID: -3331425536540470660}
   m_Layer: 6
   m_Name: CUSTOM WIZARD ICE
-  m_TagString: Untagged
+  m_TagString: Ice
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0

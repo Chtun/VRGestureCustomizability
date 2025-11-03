@@ -17,7 +17,7 @@ GameObject:
   - component: {fileID: -5877244068376133474}
   m_Layer: 6
   m_Name: CUSTOM WIZARD LIGHTNING
-  m_TagString: Untagged
+  m_TagString: Lightning
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0

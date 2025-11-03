@@ -14346,7 +14346,7 @@ GameObject:
   - component: {fileID: 262591373410736348}
   m_Layer: 6
   m_Name: CUSTOM WIZARD FIREBALL
-  m_TagString: Untagged
+  m_TagString: Fireball
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
