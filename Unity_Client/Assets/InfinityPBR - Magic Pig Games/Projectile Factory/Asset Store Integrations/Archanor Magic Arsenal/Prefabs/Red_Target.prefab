@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 6357343333516429600}
   - component: {fileID: 5129420989198500052}
   - component: {fileID: 7684218627982112924}
-  m_Layer: 7
+  m_Layer: 0
   m_Name: Target Object
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -115,7 +115,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1121117872438701120}
-  m_Layer: 7
+  m_Layer: 0
   m_Name: Target Position
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -148,7 +148,7 @@ GameObject:
   - component: {fileID: 178915185135401710}
   - component: {fileID: 2765925687804419893}
   - component: {fileID: 7999056630930026724}
-  m_Layer: 7
+  m_Layer: 0
   m_Name: Cylinder (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -238,7 +238,7 @@ GameObject:
   - component: {fileID: 1205653210279920225}
   - component: {fileID: 5978605355111501674}
   - component: {fileID: 3594899292190990795}
-  m_Layer: 7
+  m_Layer: 0
   m_Name: Sphere
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -348,7 +348,8 @@ GameObject:
   - component: {fileID: 3157265715547523754}
   - component: {fileID: 712223310729366940}
   - component: {fileID: 8167481506153742899}
-  m_Layer: 7
+  - component: {fileID: 3091659376711484361}
+  m_Layer: 0
   m_Name: Red_Target
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -417,10 +418,22 @@ CapsuleCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Radius: 0.5
+  m_Radius: 0.65
   m_Height: 2
   m_Direction: 1
   m_Center: {x: 0, y: 1, z: 0}
+--- !u!114 &3091659376711484361
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2140629352537491101}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 16795aca268782a4db9a75d879bb3bad, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FloatingTarget
 --- !u!1 &2514056813019333764
 GameObject:
   m_ObjectHideFlags: 0
@@ -432,7 +445,7 @@ GameObject:
   - component: {fileID: 199735049977203468}
   - component: {fileID: 93212293365606}
   - component: {fileID: 217924800419929204}
-  m_Layer: 7
+  m_Layer: 0
   m_Name: Cylinder
   m_TagString: Untagged
   m_Icon: {fileID: 0}

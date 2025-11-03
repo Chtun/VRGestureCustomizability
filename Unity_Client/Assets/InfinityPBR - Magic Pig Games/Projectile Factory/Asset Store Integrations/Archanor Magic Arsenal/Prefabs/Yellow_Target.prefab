@@ -9,7 +9,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2089488307764873882}
-  m_Layer: 7
+  m_Layer: 0
   m_Name: Target Position
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -43,7 +43,7 @@ GameObject:
   - component: {fileID: 122910872805407620}
   - component: {fileID: 2617418063576803504}
   - component: {fileID: 5830373841389990620}
-  m_Layer: 7
+  m_Layer: 0
   m_Name: Sphere
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -153,7 +153,7 @@ GameObject:
   - component: {fileID: 1139811271588045916}
   - component: {fileID: 1650490220551725279}
   - component: {fileID: 6992599026096633021}
-  m_Layer: 7
+  m_Layer: 0
   m_Name: Cylinder (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -242,7 +242,8 @@ GameObject:
   - component: {fileID: 6220853183725283365}
   - component: {fileID: 4545285427351244834}
   - component: {fileID: 6190797307934156609}
-  m_Layer: 7
+  - component: {fileID: -9156389387329671733}
+  m_Layer: 0
   m_Name: Yellow_Target
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -311,10 +312,22 @@ CapsuleCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Radius: 0.5
+  m_Radius: 0.65
   m_Height: 2
   m_Direction: 1
   m_Center: {x: 0, y: 1, z: 0}
+--- !u!114 &-9156389387329671733
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5847698466493988373}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 16795aca268782a4db9a75d879bb3bad, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FloatingTarget
 --- !u!1 &6201347382274455382
 GameObject:
   m_ObjectHideFlags: 0
@@ -326,7 +339,7 @@ GameObject:
   - component: {fileID: 8001014136201622550}
   - component: {fileID: 2120339219392552821}
   - component: {fileID: 1363280699724415837}
-  m_Layer: 7
+  m_Layer: 0
   m_Name: Cylinder
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -416,7 +429,7 @@ GameObject:
   - component: {fileID: 8008093401434879311}
   - component: {fileID: 5459839393834034884}
   - component: {fileID: 3225602191108221504}
-  m_Layer: 7
+  m_Layer: 0
   m_Name: Target Object
   m_TagString: Untagged
   m_Icon: {fileID: 0}
