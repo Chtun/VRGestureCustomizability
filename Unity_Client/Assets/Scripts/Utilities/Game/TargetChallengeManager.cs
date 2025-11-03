@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 using System.Collections;
 
 public class TargetChallengeManager : MonoBehaviour
@@ -13,7 +14,8 @@ public class TargetChallengeManager : MonoBehaviour
     public Transform[] spawnPoints;
 
     [Header("UI Elements")]
-    public Text timerText;
+    public TextMeshProUGUI timerText;
+    public ChallengeButton challengeButton;
 
     private GameObject[] activeTargets = new GameObject[3];
     private float timer = 0f;
@@ -37,7 +39,9 @@ public class TargetChallengeManager : MonoBehaviour
         timer = 0f;
         challengeRunning = true;
 
-        // Spawn 3 targets at random or predefined spawn points
+        if (timerText != null)
+            timerText.text = "Time: 0.00s";
+
         SpawnTarget(redTargetPrefab, 0);
         SpawnTarget(yellowTargetPrefab, 1);
         SpawnTarget(blueTargetPrefab, 2);
@@ -57,31 +61,30 @@ public class TargetChallengeManager : MonoBehaviour
 
     public void TargetDestroyed(GameObject target)
     {
-        Debug.Log($"Target {target.name} destroyed!");
         for (int i = 0; i < activeTargets.Length; i++)
         {
             if (activeTargets[i] == target)
                 activeTargets[i] = null;
         }
 
-        // Check if all targets are gone
-        bool allDestroyed = true;
+        // check if all are destroyed
         foreach (var t in activeTargets)
         {
-            if (t != null)
-            {
-                allDestroyed = false;
-                break;
-            }
+            if (t != null) return;
         }
 
-        if (allDestroyed)
-            EndChallenge();
+        EndChallenge();
     }
 
     private void EndChallenge()
     {
         challengeRunning = false;
+        if (timerText != null)
+            timerText.text = $"Finished! Time: {timer:F2}s";
+
+        if (challengeButton != null)
+            challengeButton.ResetButton();
+
         Debug.Log($"Challenge complete! Final time: {timer:F2}s");
     }
 
