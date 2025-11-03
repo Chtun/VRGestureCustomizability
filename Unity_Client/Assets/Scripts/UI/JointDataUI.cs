@@ -6,7 +6,6 @@ using UnityEngine.UI;
 public class JointDataUI : MonoBehaviour
 {
 	[Header("References")]
-	[SerializeField] public JointDataGather jointDataGather;
 	[SerializeField] public TextMeshProUGUI timestampText;              // UI Text to display time stamp
 	[SerializeField] public float updateInterval = 0.1f;     // Seconds between UI updates
 
@@ -21,12 +20,14 @@ public class JointDataUI : MonoBehaviour
 	[Header("Is Recording Indicator")]
 	[SerializeField] private Image isRecordingIndicator;
 
+	private string scriptName = "JointDataUI";
+
 	private void Start()
 	{
-		if (jointDataGather != null)
+		if (GestureSystemManager.instance != null)
 			StartCoroutine(UpdateUIRoutine());
 		else
-			Debug.LogError("JointDataGather reference not set in JointDataUI.");
+			Debug.LogError($"[{scriptName}] GestureSystemManager instance not found!");
 	}
 
 	private IEnumerator UpdateUIRoutine()
@@ -40,12 +41,12 @@ public class JointDataUI : MonoBehaviour
 
 	private void UpdateJointDataUI()
 	{
-		if (jointDataGather == null)
+		if (GestureSystemManager.instance == null)
 			return;
 
 		// Check if hand data is reliable
-		bool rightHandReliable = this.jointDataGather.IsDataReliable(isRightHand: true);
-		bool leftHandReliable = this.jointDataGather.IsDataReliable(isRightHand: false);
+		bool rightHandReliable = GestureSystemManager.instance.IsDataReliable(isRightHand: true);
+		bool leftHandReliable = GestureSystemManager.instance.IsDataReliable(isRightHand: false);
 
 		// Update circle colors
 		if (leftHandIndicator != null)
@@ -66,7 +67,15 @@ public class JointDataUI : MonoBehaviour
 
 
 		if (isRecordingIndicator != null)
-			isRecordingIndicator.color = activeColor;
+		{
+			if (GestureSystemManager.instance.IsRecording())
+				isRecordingIndicator.color = activeColor;
+			else
+			{
+				isRecordingIndicator.color = inactiveColor;
+			}
+		}
+
 	}
 
 }

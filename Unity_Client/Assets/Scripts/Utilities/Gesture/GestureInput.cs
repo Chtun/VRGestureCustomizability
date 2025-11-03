@@ -3,6 +3,7 @@
 // ==========================================================
 using System;
 using System.Collections.Generic;
+using System.Text;
 
 [Serializable]
 public class GestureInput
@@ -27,4 +28,49 @@ public class GestureInput
 		this.left_wrist = leftWrist;
 		this.right_wrist = rightWrist;
 	}
+
+	public override string ToString()
+	{
+		StringBuilder sb = new StringBuilder();
+		sb.AppendLine($"GestureInput: {label}");
+
+		sb.AppendLine("Left Joints:");
+		AppendNestedList(sb, left_joints);
+
+		sb.AppendLine("Right Joints:");
+		AppendNestedList(sb, right_joints);
+
+		sb.AppendLine("Left Wrist:");
+		Append2DList(sb, left_wrist);
+
+		sb.AppendLine("Right Wrist:");
+		Append2DList(sb, right_wrist);
+
+		return sb.ToString();
+	}
+
+	private void AppendNestedList(StringBuilder sb, List<List<List<float>>> data)
+	{
+		foreach (var frame in data)
+		{
+			sb.Append("[ ");
+			foreach (var joint in frame)
+			{
+				sb.Append("[");
+				sb.Append(string.Join(", ", joint));
+				sb.Append("] ");
+			}
+			sb.AppendLine("]");
+		}
+	}
+
+	private void Append2DList(StringBuilder sb, List<List<float>> data)
+	{
+		foreach (var frame in data)
+		{
+			sb.AppendLine("[ " + string.Join(", ", frame) + " ]");
+		}
+	}
+
+
 }

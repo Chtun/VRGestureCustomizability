@@ -17,7 +17,9 @@ public class JointDataGather : MonoBehaviour
 	[SerializeField] private string outputCSVName;
 	[SerializeField] private static string liveOutputCSVPrefix = "live_recordings";
 	[SerializeField] private bool isRecording = false;
+
 	public bool IsRecording => isRecording;
+	public float TimeBetweenSamples => timeBetweenSamples;
 
 	[Header("Hand Search Settings")]
 	[SerializeField] private string leftHandName = "LeftInteractions";
@@ -71,15 +73,40 @@ public class JointDataGather : MonoBehaviour
 
 	private void StartRecording(string label = null)
 	{
-		if (label != null)
+		string outputPath;
+		if (string.IsNullOrEmpty(label))
+		{
+			outputPath = Path.Combine(Application.persistentDataPath, $"{outputCSVName}.csv");
+		}
+		else
 		{
 			outputCSVName = GetRecordedCSVName(label);
+			outputPath = GetRecordedCSVPath(label);
+
+			// Clean out the current file if it exists
+			if (File.Exists(outputPath))
+			{
+				string[] lines = File.ReadAllLines(outputPath);
+				if (lines.Length > 0)
+				{
+					// Keep only the first line (header)
+					File.WriteAllText(outputPath, lines[0] + Environment.NewLine);
+					Debug.Log($"[{scriptName}] Cleared file but kept header: {outputPath}");
+				}
+				else
+				{
+					Debug.Log($"[{scriptName}] File was empty: {outputPath}");
+				}
+			}
 		}
+
+
+		Debug.Log("Recording to CSV path: " + outputPath);
 
 		if (!isRecording)
 		{
 			isRecording = true;
-			StartCoroutine(RecordDataLoop(label));
+			StartCoroutine(RecordDataLoop(outputPath));
 		}
 	}
 
@@ -98,11 +125,11 @@ public class JointDataGather : MonoBehaviour
 		return $"{liveOutputCSVPrefix}-{label}";
 	}
 
-	private IEnumerator RecordDataLoop(string label = null)
+	private IEnumerator RecordDataLoop(string outputPath)
 	{
 		while (isRecording)
 		{
-			RecordData(label);
+			RecordData(outputPath);
 			yield return new WaitForSeconds(timeBetweenSamples); // repeat after the specified time between samples.
 		}
 	}
@@ -320,22 +347,8 @@ public class JointDataGather : MonoBehaviour
 	}
 
 
-	private void RecordData(string label = null)
+	private void RecordData(string outputPath)
 	{
-		string outputPath;
-		if (string.IsNullOrEmpty(label))
-		{
-			outputPath = Path.Combine(Application.persistentDataPath, $"{outputCSVName}.csv");
-		}
-		else
-		{
-			outputPath = GetRecordedCSVPath(label);
-		}
-
-
-		Debug.Log("CSV path: " + outputPath);
-
-
 		// Collect joint data
 		Dictionary<HandJointId, Pose> currentLeftJointPoses = GetJointData(leftHand);
 		Dictionary<HandJointId, Pose> currentRightJointPoses = GetJointData(rightHand);
@@ -360,8 +373,9 @@ public class JointDataGather : MonoBehaviour
 		}
 
 		// Wait until both hands are tracked
-		while (!leftHand.IsTrackedDataValid || !rightHand.IsTrackedDataValid)
+		while (!IsDataReliable(isRightHand: false) || !IsDataReliable(isRightHand: true))
 		{
+			Debug.Log("Both hands are not tracked yet!");
 			yield return null; // wait for next frame
 		}
 
@@ -392,13 +406,13 @@ public class JointDataGather : MonoBehaviour
 
 		foreach (var header in headers)
 		{
-			if (header.StartsWith("L_") && header.Contains("_pos"))
+			if (header.StartsWith("L_") && header.Contains("_pos") && !header.Contains("Root"))
 			{
 				string jointName = header.Substring(2, header.IndexOf("_pos") - 2);
 				if (!leftJointNames.Contains(jointName))
 					leftJointNames.Add(jointName);
 			}
-			else if (header.StartsWith("R_") && header.Contains("_pos"))
+			else if (header.StartsWith("R_") && header.Contains("_pos") && !header.Contains("Root"))
 			{
 				string jointName = header.Substring(2, header.IndexOf("_pos") - 2);
 				if (!rightJointNames.Contains(jointName))
@@ -408,6 +422,11 @@ public class JointDataGather : MonoBehaviour
 
 		int numLeftJoints = leftJointNames.Count;  // Should be 24
 		int numRightJoints = rightJointNames.Count; // Should be 24
+
+		if (numLeftJoints != 24 || numRightJoints != 24)
+		{
+			Debug.LogError("The number of left joints or right joint names in the header of the file do not match! Please ensure file header is correct!");
+		}
 
 		var leftJoints = new List<List<List<float>>>();
 		var rightJoints = new List<List<List<float>>>();

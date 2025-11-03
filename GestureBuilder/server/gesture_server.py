@@ -17,6 +17,7 @@ from GestureBuilder.model.VQ_VAE import VQVAE
 from GestureBuilder.utilities.naming_conventions import get_hand_joint_list
 from GestureBuilder.utilities.sequence_comparison import sequence_distance
 from GestureBuilder.model.hand_dataset import joints_dict_to_tensor, load_hand_tensors_from_csv, convert_joint_to_hand_vector
+from GestureBuilder.utilities.file_operations import load_gestures_from_json, save_gestures_to_json
 
 # === FastAPI setup ===
 app = FastAPI()
@@ -66,8 +67,8 @@ vqvae_model.load_state_dict(torch.load(input_VQVAE_model, map_location=DEVICE))
 vqvae_model.to(DEVICE)
 vqvae_model.eval()
 
-# === Gesture templates storage: dict of lists ===
-gesture_templates: Dict[str, List[Dict[str, torch.Tensor]]] = {}
+# === Default gesture templates storage: dict of lists ===
+default_gesture_templates: Dict[str, List[Dict[str, torch.Tensor]]] = {}
 num_templates = 0
 MAX_NUM_TEMPLATES = 15
 
@@ -76,8 +77,8 @@ for pair in gesture_template_paths:
     gesture_key =  pair[0]
     template_path = pair[1]
 
-    if gesture_key not in gesture_templates:
-        gesture_templates[gesture_key] = []
+    if gesture_key not in default_gesture_templates:
+        default_gesture_templates[gesture_key] = []
 
     left_seq, right_seq, lw, rw = load_hand_tensors_from_csv(template_path, JOINTS_LIST)
     gesture_dict = {
@@ -87,9 +88,9 @@ for pair in gesture_template_paths:
         "right_wrist_root": rw
     }
 
-    gesture_templates[gesture_key].append(gesture_dict)
+    default_gesture_templates[gesture_key].append(gesture_dict)
 
-print(gesture_templates.keys())
+print(f"Default gesture keys: {default_gesture_templates.keys()}")
 
 # === HTTP Endpoint to add a new gesture ===
 class GestureInput(BaseModel):
@@ -101,7 +102,10 @@ class GestureInput(BaseModel):
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
+    global default_gesture_templates
     await websocket.accept()
+
+    gesture_templates: Dict[str, List[Dict[str, torch.Tensor]]] = load_gestures_from_json(cfg['paths']['gesture_template_json'])
 
     # Maintain separate rolling buffers
     buffer_left_hands = deque(maxlen=BUFFER_MAX_LEN)
@@ -110,6 +114,27 @@ async def websocket_endpoint(websocket: WebSocket):
     buffer_right_wrist = deque(maxlen=BUFFER_MAX_LEN)
 
     try:
+
+        message = await websocket.receive_text()
+        data = json.loads(message)
+
+        if data.get("type") == "init":
+            use_default_system = data.get("useDefaultSystem", True)
+            print(f"Client using default system? {use_default_system}")
+        else:
+            # Send error message
+            await websocket.send_json({
+                "error": "Expected 'init' message first."
+            })
+            # Close the connection
+            await websocket.close(code=1003)  # 1003 = unsupported data
+            return
+        
+        if use_default_system:
+            print(default_gesture_templates.keys())
+        else:
+            print(gesture_templates.keys())
+
         while True:
             message = await websocket.receive_text()
             data = json.loads(message)
@@ -140,10 +165,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 seq_right_hands_flat = seq_right_hands.view(seq_right_hands.shape[0], -1) # (num_frames, num_joints * 3)
 
                 loop = asyncio.get_running_loop()
-                match_found = False
 
                 start_time = time.time()  # start timer
-                lowest_distance = 1000 # Store the lowest dtw distance value.
 
                 # Use ThreadPoolExecutor for CPU-bound DTW
                 with ThreadPoolExecutor() as executor:
@@ -153,31 +176,58 @@ async def websocket_endpoint(websocket: WebSocket):
                     futures = []
                     template_keys = []
 
-                    # Submit sequence_distance calls for all templates
-                    for gesture_key, template_list in gesture_templates.items():
-                        for template in template_list:
+                    if use_default_system:
+                        # Submit sequence_distance calls for all default templates
+                        for gesture_key, template_list in default_gesture_templates.items():
+                            for template in template_list:
 
-                            buffer_length = len(buffer_left_hands)
-                            template_length = len(template["left_hand_vectors"])
+                                buffer_length = len(buffer_left_hands)
+                                template_length = len(template["left_hand_vectors"])
 
-                            if buffer_length >= template_length:
-                                future = loop.run_in_executor(
-                                    executor,
-                                    sequence_distance,
-                                    vqvae_model,
-                                    seq_left_hands_flat,
-                                    seq_right_hands_flat,
-                                    seq_left_wrist,
-                                    seq_right_wrist,
-                                    template["left_hand_vectors"],
-                                    template["right_hand_vectors"],
-                                    template["left_wrist_root"],
-                                    template["right_wrist_root"],
-                                )
-                                futures.append(future)
-                                template_keys.append(gesture_key)
-                            elif gesture_key not in gesture_results:
-                                gesture_results[gesture_key] = (-1, False)
+                                if buffer_length >= template_length:
+                                    future = loop.run_in_executor(
+                                        executor,
+                                        sequence_distance,
+                                        vqvae_model,
+                                        seq_left_hands_flat,
+                                        seq_right_hands_flat,
+                                        seq_left_wrist,
+                                        seq_right_wrist,
+                                        template["left_hand_vectors"],
+                                        template["right_hand_vectors"],
+                                        template["left_wrist_root"],
+                                        template["right_wrist_root"],
+                                    )
+                                    futures.append(future)
+                                    template_keys.append(gesture_key)
+                                elif gesture_key not in gesture_results:
+                                    gesture_results[gesture_key] = (-1, False)
+                    else:
+                        # Submit sequence_distance calls for all user-defined templates
+                        for gesture_key, template_list in gesture_templates.items():
+                            for template in template_list:
+
+                                buffer_length = len(buffer_left_hands)
+                                template_length = len(template["left_hand_vectors"])
+
+                                if buffer_length >= template_length:
+                                    future = loop.run_in_executor(
+                                        executor,
+                                        sequence_distance,
+                                        vqvae_model,
+                                        seq_left_hands_flat,
+                                        seq_right_hands_flat,
+                                        seq_left_wrist,
+                                        seq_right_wrist,
+                                        template["left_hand_vectors"],
+                                        template["right_hand_vectors"],
+                                        template["left_wrist_root"],
+                                        template["right_wrist_root"],
+                                    )
+                                    futures.append(future)
+                                    template_keys.append(gesture_key)
+                                elif gesture_key not in gesture_results:
+                                    gesture_results[gesture_key] = (-1, False)
 
                     # Process results as they complete
                     for future, gesture_key in zip(futures, template_keys):
@@ -231,7 +281,10 @@ add_gesture_statuses = {
 
 @app.post("/add_gesture")
 async def add_gesture(gesture: GestureInput):
+    global num_templates, MAX_NUM_TEMPLATES
     try:
+        gesture_templates: Dict[str, List[Dict[str, torch.Tensor]]] = load_gestures_from_json(cfg['paths']['gesture_template_json'])
+
         # === Check that there are fewer than the max number of templates ===
         if num_templates >= MAX_NUM_TEMPLATES:
             return {
@@ -268,12 +321,16 @@ async def add_gesture(gesture: GestureInput):
         left_hand_vectors = convert_joint_to_hand_vector(left_joints)
         right_hand_vectors = convert_joint_to_hand_vector(right_joints)
 
+        # === Flatten to shape (num_frames, 72) ===
+        left_hand_vectors = left_hand_vectors.reshape(left_hand_vectors.shape[0], -1)
+        right_hand_vectors = right_hand_vectors.reshape(right_hand_vectors.shape[0], -1)
+
         # === Store the gesture ===
         gesture_dict = {
-            "left_hand_vectors": left_hand_vectors,
-            "right_hand_vectors": right_hand_vectors,
-            "left_wrist_root": left_wrist_root,
-            "right_wrist_root": right_wrist_root,
+            "left_hand_vectors": left_hand_vectors,   # shape: (num_frames, 72)
+            "right_hand_vectors": right_hand_vectors, # shape: (num_frames, 72)
+            "left_wrist_root": left_wrist_root, # shape: (num_frames, 3)
+            "right_wrist_root": right_wrist_root, # shape: (num_frames, 3)
         }
 
         if gesture.label not in gesture_templates:
@@ -322,21 +379,88 @@ async def add_gesture(gesture: GestureInput):
 
         gesture_templates[gesture.label].append(gesture_dict)
 
+        print(gesture_templates.keys())
+
+        save_gestures_to_json(gesture_templates, cfg['paths']['gesture_template_json'])
+
         return {
             "status_code": add_gesture_statuses["OK"],
             "message": f"Gesture '{gesture.label}' added.",
         }
 
     except Exception as e:
+        print(e)
         return {
             "status_code": add_gesture_statuses["Internal Error"],
             "message": f"Internal Error: {str(e)}"
         }
 
+remove_gestures_statuses = {
+    "OK": 0,
+    "No Label Found": 1,
+    "Internal Error": -1
+}
+
+@app.delete("/gesture/{gesture_label}")
+async def remove_gesture(gesture_label: str):
+    global num_templates
+    try:
+        gesture_templates: Dict[str, List[Dict[str, torch.Tensor]]] = load_gestures_from_json(cfg['paths']['gesture_template_json'])
+
+        # === Check that the gesture label has templates ===
+        if gesture_label in gesture_templates:
+            num_templates_removed = len(gesture_templates[gesture_label])
+
+            del gesture_templates[gesture_label]
+
+            num_templates -= num_templates_removed
+
+            save_gestures_to_json(gesture_templates, cfg['paths']['gesture_template_json'])
+
+            return {
+                "status_code": remove_gestures_statuses["OK"],
+                "message": f"Removed {num_templates_removed} templates from gesture with label '{gesture_label}'"
+            }
+        else:
+            return {
+                "status_code": remove_gestures_statuses["No Label Found"],
+                "message": f"No templates found for gesture with label '{gesture_label}'"
+            }
+
+    except Exception as e:
+        return {
+            "status_code": remove_gestures_statuses["Internal Error"],
+            "message": f"Internal Error: {str(e)}"
+        }
+
+@app.delete("/gesture/")
+async def remove_all_gestures():
+    global num_templates
+    try:
+
+
+        gesture_templates = {}
+        num_templates = 0
+        
+        save_gestures_to_json(gesture_templates, cfg['paths']['gesture_template_json'])
+
+        return {
+            "status_code": remove_gestures_statuses["OK"],
+            "message": f"All gestures removed."
+        }
+
+    except Exception as e:
+        return {
+            "status_code": remove_gestures_statuses["Internal Error"],
+            "message": f"Internal Error: {str(e)}"
+        }        
+
+
 
 @app.get("/get_gestures")
 async def get_gestures():
     serializable_gestures = {}
+    gesture_templates: Dict[str, List[Dict[str, torch.Tensor]]] = load_gestures_from_json(cfg['paths']['gesture_template_json'])
 
     def tensor_to_list(tensor):
         # Convert PyTorch tensor to nested lists

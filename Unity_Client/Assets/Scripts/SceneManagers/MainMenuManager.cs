@@ -14,9 +14,6 @@ public class MainUIController : MonoBehaviour
 	[SerializeField] private Button defaultSystemButton;
 	[SerializeField] private Button userDefinedSystemButton;
 
-	[SerializeField] private GestureSystemManager _gestureSystemManager;
-	[SerializeField] private SceneTransitionManager _sceneTransitionManager;
-
 	private Color selectedColor = Color.green;
 	private Color unselectedColor = Color.white;
 
@@ -31,16 +28,6 @@ public class MainUIController : MonoBehaviour
 		if (puzzleButton == null) Debug.LogWarning("PuzzleButton not assigned!");
 		if (defaultSystemButton == null) Debug.LogWarning("DefaultToggle not assigned!");
 		if (userDefinedSystemButton == null) Debug.LogWarning("UserDefinedToggle not assigned!");
-
-		if (_gestureSystemManager == null)
-			_gestureSystemManager = FindFirstObjectByType<GestureSystemManager>();
-		if (_gestureSystemManager == null)
-			Debug.LogError($"[{scriptName}] GestureSystemManager not found!");
-
-		if (_sceneTransitionManager == null)
-			_sceneTransitionManager = FindFirstObjectByType<SceneTransitionManager>();
-		if (_sceneTransitionManager == null)
-			Debug.LogError($"[{scriptName}] SceneTransitionManager not found!");
 	}
 	private void Start()
 	{
@@ -52,7 +39,7 @@ public class MainUIController : MonoBehaviour
 		defaultSystemButton.onClick.AddListener(OnDefaultSystemButtonPressed);
 		userDefinedSystemButton.onClick.AddListener(OnUserDefinedSystemButtonPressed);
 
-		SetGestureSystemType(true);
+		SetGestureSystemType(GestureSystemManager.instance.useDefaultSystem);
 	}
 
 	#region Button Handlers
@@ -61,25 +48,25 @@ public class MainUIController : MonoBehaviour
 	{
 		Debug.Log("Changing to Gesture Recording scene!");
 
-		_sceneTransitionManager.LoadScene("GestureRecording");
+		SceneTransitionManager.instance.LoadScene("GestureRecording");
 	}
 
 	private void OnGesturePracticeButtonPressed()
 	{
 		Debug.Log("Changing to Gesture Practice scene!");
-		_sceneTransitionManager.LoadScene("GesturePractice");
+		SceneTransitionManager.instance.LoadScene("GesturePractice");
 	}
 
 	private void OnGameButtonPressed()
 	{
 		Debug.Log("Changing to Game scene!");
-		_sceneTransitionManager.LoadScene("WizardGame");
+		SceneTransitionManager.instance.LoadScene("WizardGame");
 	}
 
 	private void OnPuzzleButtonPressed()
 	{
 		Debug.Log("Changing to Puzzle scene!");
-		_sceneTransitionManager.LoadScene("Puzzle");
+		SceneTransitionManager.instance.LoadScene("Puzzle");
 	}
 
 	private void OnDefaultSystemButtonPressed()
@@ -102,16 +89,16 @@ public class MainUIController : MonoBehaviour
 	/// <param name="useDefault">If true, selects default system; otherwise user-defined.</param>
 	private void SetGestureSystemType(bool useDefault)
 	{
-		if (_gestureSystemManager != null)
+		if (GestureSystemManager.instance != null)
 		{
-			_gestureSystemManager.useDefaultSystem = useDefault;
+			GestureSystemManager.instance.useDefaultSystem = useDefault;
 
 			// Deselect the button immediately so it doesn't stay bright
 			EventSystem.current.SetSelectedGameObject(null);
 
 			// Update button colors to indicate selection
-			defaultSystemButton.image.color = _gestureSystemManager.useDefaultSystem ? selectedColor : unselectedColor;
-			userDefinedSystemButton.image.color = _gestureSystemManager.useDefaultSystem ? unselectedColor : selectedColor;
+			defaultSystemButton.image.color = GestureSystemManager.instance.useDefaultSystem ? selectedColor : unselectedColor;
+			userDefinedSystemButton.image.color = GestureSystemManager.instance.useDefaultSystem ? unselectedColor : selectedColor;
 		}
 		else
 		{

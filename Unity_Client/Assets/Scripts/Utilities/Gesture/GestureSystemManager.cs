@@ -19,10 +19,11 @@ public class GestureSystemManager : MonoBehaviour
 
 	private string scriptName = "GestureSystemManager";
 
-	private static GestureSystemManager instance; // Singleton reference
+	public static GestureSystemManager instance; // Singleton reference
 
 	[SerializeField]
 	private Dictionary<string, ActionType> GestureKeyToActionType;
+
 
 	private string currentRecordedGestureKey;
 
@@ -37,17 +38,7 @@ public class GestureSystemManager : MonoBehaviour
 		instance = this;
 		DontDestroyOnLoad(gameObject); // Make persistent
 
-		// Add default gestures to the key to action dictionary
-		GestureKeyToActionType = new Dictionary<string, ActionType>();
-		Config config = Config.LoadConfig();
-
-		foreach (string gestureKey in config.defaultGestures.Keys.ToList())
-		{
-			ActionType associatedActionType = config.defaultGestures[gestureKey];
-			GestureKeyToActionType[gestureKey] = associatedActionType;
-
-			Debug.Log($"Added gesture key: {gestureKey} to dictionary with associated action: {associatedActionType.ToString()}");
-		}
+		InitializeGestureKeyToActionType();
 
 		// Auto-find clients if not assigned
 		if (gestureHTTPClient == null)
@@ -83,6 +74,9 @@ public class GestureSystemManager : MonoBehaviour
 		// If recording data, start a coroutine that waits for tracking before recording
 		if (jointDataGather != null && recordJointData)
 			StartCoroutine(jointDataGather.WaitForHandsThenRecord());
+
+
+		Debug.Log(JointDataGather.ReadCSVToGestureInput("C:\\Users\\chtun\\AppData\\LocalLow\\DefaultCompany\\Unity_VR_Template\\live_recordings-Cast Fireball 2.csv", "test").ToString());
 	}
 
 	void OnDestroy()
@@ -109,6 +103,20 @@ public class GestureSystemManager : MonoBehaviour
 		}
 	}
 
+	private void InitializeGestureKeyToActionType()
+	{
+		// Add default gestures to the key to action dictionary
+		GestureKeyToActionType = new Dictionary<string, ActionType>();
+		Config config = Config.LoadConfig();
+
+		foreach (string gestureKey in config.defaultGestures.Keys.ToList())
+		{
+			ActionType associatedActionType = config.defaultGestures[gestureKey];
+			GestureKeyToActionType[gestureKey] = associatedActionType;
+
+			Debug.Log($"Added gesture key: {gestureKey} to dictionary with associated action: {associatedActionType.ToString()}");
+		}
+	}
 
 	#region API
 
@@ -125,11 +133,30 @@ public class GestureSystemManager : MonoBehaviour
 		return false;
 	}
 
+	public bool IsRecording()
+	{
+		return jointDataGather.IsRecording;
+	}
+
+	public string GetNextGestureKey(ActionType actionType)
+	{
+		int index = 1;
+		string gestureKey = $"{InputManager.ActionTypeName(actionType)} {index}";
+
+		while (GestureKeyToActionType.ContainsKey(gestureKey))
+		{
+			index += 1;
+			gestureKey = $"{InputManager.ActionTypeName(actionType)} {index}";
+		}
+
+		return gestureKey;
+	}
+
 	public bool StartGestureRecognition()
 	{
 		if (RefreshGestureList() && gestureWebSocketStreamer != null)
 		{
-			gestureWebSocketStreamer.Connect();
+			gestureWebSocketStreamer.Connect(useDefaultSystem);
 
 			return true;
 		}
@@ -158,12 +185,15 @@ public class GestureSystemManager : MonoBehaviour
 
 		if (jointDataGather.IsRecording)
 		{
-			Debug.LogWarning($"[{scriptName}] Joint data was already recording data, stopping to now record current gesture 'label'.");
+			Debug.LogWarning($"[{scriptName}] Joint data was already recording data, stopping to now record current gesture '{label}'.");
 			jointDataGather.StopRecording();
-			currentRecordedGestureKey = string.Empty;
 		}
 
-		jointDataGather.WaitForHandsThenRecord(label);
+		currentRecordedGestureKey = label;
+
+		Debug.Log($"[{scriptName}] Beginning new recording for gesture '{label}'.");
+
+		StartCoroutine(jointDataGather.WaitForHandsThenRecord(label));
 
 		return true;
 	}
@@ -213,6 +243,45 @@ public class GestureSystemManager : MonoBehaviour
 		onComplete?.Invoke(success);
 	}
 
+	public IEnumerator RemoveGesture(string gestureLabel, Action<bool> onComplete = null)
+	{
+		bool success = false;
+
+		// Start the HTTP request and wait for it
+		yield return StartCoroutine(gestureHTTPClient.RemoveGesture(gestureLabel, (requestSuccess) =>
+		{
+			success = requestSuccess;
+		}));
+
+		if (success)
+		{
+			GestureKeyToActionType.Remove(gestureLabel);
+		}
+
+		// Notify caller when done
+		onComplete?.Invoke(success);
+	}
+
+	public IEnumerator RemoveAllGestures(Action<bool> onComplete = null)
+	{
+		bool success = false;
+
+		// Start the HTTP request and wait for it
+		yield return StartCoroutine(gestureHTTPClient.RemoveAllGestures((requestSuccess) =>
+		{
+			success = requestSuccess;
+		}));
+
+		if (success)
+		{
+			InitializeGestureKeyToActionType();
+		}
+	}
+
+	public bool IsDataReliable(bool isRightHand)
+	{
+		return jointDataGather.IsDataReliable(isRightHand);
+	}
 
 	#endregion API
 

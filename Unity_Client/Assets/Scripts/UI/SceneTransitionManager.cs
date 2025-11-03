@@ -4,7 +4,7 @@ using UnityEngine.SceneManagement;
 
 public class SceneTransitionManager : MonoBehaviour
 {
-	public static SceneTransitionManager Instance { get; private set; }
+	public static SceneTransitionManager instance { get; private set; }
 
 	[Header("OVR Screen Fade Settings")]
 	[SerializeField] private float defaultFadeDuration = 0.5f;
@@ -12,12 +12,12 @@ public class SceneTransitionManager : MonoBehaviour
 	private void Awake()
 	{
 		// Singleton pattern
-		if (Instance != null && Instance != this)
+		if (instance != null && instance != this)
 		{
 			Destroy(gameObject);
 			return;
 		}
-		Instance = this;
+		instance = this;
 		DontDestroyOnLoad(gameObject);
 	}
 

@@ -2,6 +2,8 @@ paths:
   data_folder: "C:\\Users\\chtun\\AppData\\LocalLow\\DefaultCompany\\Unity_VR_Template"
   output_folder: "../output"
   input_VQVAE_model: "vqvae_hand_model.pt"
+  gesture_template_json: "./database/stored_gesture_templates.json"
+  
 
 gesture_template_paths:
   - name: "Right Jab"

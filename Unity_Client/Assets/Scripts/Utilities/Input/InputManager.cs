@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -61,6 +62,18 @@ public class InputManager : MonoBehaviour
 	{
 		OnTeleportCast?.Invoke();
 	}
+
+	public static string ActionTypeName(ActionType actionType)
+	{
+		// Convert enum to string
+		string name = actionType.ToString();
+
+		// Insert space between lowercase and uppercase letters
+		string formattedName = Regex.Replace(name, "([a-z])([A-Z])", "$1 $2");
+
+		return formattedName;
+	}
+
 }
 
 public enum ActionType

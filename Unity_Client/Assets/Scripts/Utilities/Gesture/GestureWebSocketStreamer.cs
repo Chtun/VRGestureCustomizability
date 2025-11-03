@@ -32,7 +32,7 @@ public class GestureWebSocketStreamer : MonoBehaviour
 		Debug.Log($"Loaded server URL from config: {serverUrl}");
 	}
 
-	public void Connect()
+	public void Connect(bool useDefaultSystem)
 	{
 		// Already connected? Do nothing
 		if (ws != null && ws.State == WebSocketState.Open)
@@ -44,17 +44,17 @@ public class GestureWebSocketStreamer : MonoBehaviour
 			return;
 		}
 
-		StartCoroutine(WaitForTrackingThenConnect());
+		StartCoroutine(WaitForTrackingThenConnect(useDefaultSystem));
 	}
 
 
-	private IEnumerator WaitForTrackingThenConnect()
+	private IEnumerator WaitForTrackingThenConnect(bool useDefaultSystem)
 	{
 		while (!IsBothHandsTracked())
 			yield return null;
 
 		Debug.Log("Hands tracked — connecting to gesture WebSocket server...");
-		ConnectWebSocket();
+		ConnectWebSocket(useDefaultSystem);
 	}
 
 	public void Disconnect()
@@ -99,7 +99,7 @@ public class GestureWebSocketStreamer : MonoBehaviour
 			   jointDataGather.GetJointData(true) != null;
 	}
 
-	private async void ConnectWebSocket()
+	private async void ConnectWebSocket(bool useDefaultSystem)
 	{
 		ws = new ClientWebSocket();
 		cts = new CancellationTokenSource();
@@ -110,6 +110,18 @@ public class GestureWebSocketStreamer : MonoBehaviour
 			await ws.ConnectAsync(uri, cts.Token);
 			Debug.Log("Connected to gesture WebSocket server.");
 			isStreaming = true;
+
+
+			// Send initial system info
+			var initMessage = new WebsocketInitMessage
+			{
+				type = "init",
+				useDefaultSystem = useDefaultSystem
+			};
+			string jsonInit = JsonUtility.ToJson(initMessage);
+			var bytes = Encoding.UTF8.GetBytes(jsonInit);
+			await ws.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, cts.Token);
+
 			StartCoroutine(SendJointDataLoop());
 			ReceiveLoop(); // Start listening for messages
 		}
