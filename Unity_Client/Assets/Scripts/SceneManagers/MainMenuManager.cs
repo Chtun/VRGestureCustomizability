@@ -60,7 +60,7 @@ public class MainUIController : MonoBehaviour
 	private void OnGameButtonPressed()
 	{
 		Debug.Log("Changing to Game scene!");
-		SceneTransitionManager.instance.LoadScene("WizardGame");
+		SceneTransitionManager.instance.LoadScene("GameTask");
 	}
 
 	private void OnPuzzleButtonPressed()

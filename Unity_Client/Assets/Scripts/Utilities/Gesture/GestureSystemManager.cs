@@ -116,6 +116,11 @@ public class GestureSystemManager : MonoBehaviour
 
 			Debug.Log($"Added gesture key: {gestureKey} to dictionary with associated action: {associatedActionType.ToString()}");
 		}
+
+		foreach (ActionType actionType in Enum.GetValues(typeof(ActionType)))
+		{
+			GestureKeyToActionType[InputManager.ActionTypeName(actionType)] = actionType;
+		}
 	}
 
 	#region API

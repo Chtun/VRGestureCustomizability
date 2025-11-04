@@ -271,6 +271,7 @@ public class GestureRecordingManager : MonoBehaviour
 	private void OpenRecordingMode()
 	{
 		recordingMenuCanvas.gameObject.SetActive(false);
+		recordingNameText.text = $"Recording:\n{InputManager.ActionTypeName(selectedActionType)}";
 		dataDisplayCanvas.gameObject.SetActive(true);
 
 		CurrentRecordedGesture = null;
