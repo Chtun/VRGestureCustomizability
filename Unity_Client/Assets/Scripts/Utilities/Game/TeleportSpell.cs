@@ -1,104 +1,116 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 public class TeleportController : MonoBehaviour
 {
-	// 1. Link to the Input Action Asset's specific Actions
+    [Header("References")]
+    public Transform player;
+    public Transform cameraTransform;
+    public GameObject teleportIndicator;
+    public InputManager inputManager;
 
-	[Header("Components")]
-	public Transform player;
-	public Transform cameraTransform;
-	public GameObject teleportIndicator;
+    [Header("Settings")]
+    public LayerMask teleportableLayers = ~0;
+    public float indicatorHeightOffset = 0.01f;
+    public float smoothMoveSpeed = 10f;
+    public float teleportHeightOffset = 1f;
 
-	public InputManager inputManager;
+    private Vector3 targetPosition;
+    private bool validTarget = false;
+    private bool isAiming = false;
 
-	[Header("Settings")]
-	public LayerMask teleportableLayers = ~0;
-	public float indicatorHeightOffset = 0.01f;
+    void Awake()
+    {
+        if (inputManager == null)
+        {
+            inputManager = FindFirstObjectByType<InputManager>();
+            if (inputManager == null)
+            {
+                Debug.LogError("TeleportController: No InputManager found in scene!");
+                enabled = false;
+                return;
+            }
+        }
 
-	private Vector3 targetPosition;
-	private bool validTarget = false;
+        if (teleportIndicator != null)
+            teleportIndicator.SetActive(false);
+    }
 
-	void Awake()
-	{
-		// Get the InputManager reference once at startup
-		inputManager = FindFirstObjectByType<InputManager>();
-		if (inputManager == null)
-		{
-			Debug.LogError("InputManager not found! TeleportController cannot function.");
-			enabled = false;
-		}
-	}
+    void OnEnable()
+    {
+        inputManager.OnTeleportAim += ToggleAiming;
+        inputManager.OnTeleportCast += HandleTeleportActivation;
+    }
 
-	void OnEnable()
-	{
-		if (inputManager != null)
-		{
-			// Subscribe to the InputManager's events when the script is enabled
-			inputManager.OnTeleportAim += HandleTeleportAiming;
-			inputManager.OnTeleportCast += HandleTeleportActivation;
-		}
+    void OnDisable()
+    {
+        inputManager.OnTeleportAim -= ToggleAiming;
+        inputManager.OnTeleportCast -= HandleTeleportActivation;
+    }
 
-		if (teleportIndicator != null)
-			teleportIndicator.SetActive(false);
-	}
+    void Update()
+    {
+        if (isAiming)
+            HandleTeleportAiming();
+    }
 
-	void OnDisable()
-	{
-		if (inputManager != null)
-		{
-			// Unsubscribe from the InputManager's events when the script is disabled
-			inputManager.OnTeleportAim -= HandleTeleportAiming;
-			inputManager.OnTeleportCast -= HandleTeleportActivation;
-		}
-	}
+    private void ToggleAiming()
+    {
+        // Toggle on/off each time the aim key is pressed
+        isAiming = !isAiming;
+        if (!isAiming)
+        {
+            if (teleportIndicator != null)
+                teleportIndicator.SetActive(false);
+            validTarget = false;
+        }
+    }
 
-	private bool targetLocked = false; // new: lock the target while aiming
+    private void HandleTeleportAiming()
+    {
+        // Ray from the camera forward direction
+        Ray ray = new Ray(cameraTransform.position, cameraTransform.forward);
 
-	void HandleTeleportAiming()
-	{
-		if (!targetLocked)
-		{
-			Ray ray = new Ray(cameraTransform.position, cameraTransform.forward);
-			if (Physics.Raycast(ray, out RaycastHit hit, 100f, teleportableLayers))
-			{
-				targetPosition = hit.point;
-				targetLocked = true;      // lock target
-				validTarget = true;
+        if (Physics.Raycast(ray, out RaycastHit hit, 100f, teleportableLayers))
+        {
+            validTarget = true;
+            targetPosition = hit.point;
 
-				if (teleportIndicator != null)
-				{
-					teleportIndicator.SetActive(true);
-					teleportIndicator.transform.position = hit.point + Vector3.up * indicatorHeightOffset;
-				}
-			}
-			else
-			{
-				targetLocked = false;
-				validTarget = false;
-				if (teleportIndicator != null)
-					teleportIndicator.SetActive(false);
-			}
-		}
-		else
-		{
-			targetLocked = false;
-			validTarget = false;
-			if (teleportIndicator != null)
-				teleportIndicator.SetActive(false);
-		}
-	}
+            if (teleportIndicator != null)
+            {
+                teleportIndicator.SetActive(true);
 
-	void HandleTeleportActivation()
-	{
-		if (validTarget)
-		{
-			Debug.Log($"Teleporting to {targetPosition}");
-			player.position = targetPosition + Vector3.up * 1f;
-			validTarget = false;
-			targetLocked = false;
+                // Smooth follow for stability
+                teleportIndicator.transform.position = Vector3.Lerp(
+                    teleportIndicator.transform.position,
+                    hit.point + Vector3.up * indicatorHeightOffset,
+                    Time.deltaTime * smoothMoveSpeed
+                );
 
-			if (teleportIndicator != null)
-				teleportIndicator.SetActive(false);
-		}
-	}
+                // Always face up, ignore surface rotation
+                teleportIndicator.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+            }
+        }
+        else
+        {
+            validTarget = false;
+            if (teleportIndicator != null)
+                teleportIndicator.SetActive(false);
+        }
+    }
+
+    private void HandleTeleportActivation()
+    {
+        if (validTarget)
+        {
+            Debug.Log($"Teleporting to {targetPosition}");
+            player.position = targetPosition + Vector3.up * teleportHeightOffset;
+
+            // Reset state
+            validTarget = false;
+            isAiming = false;
+            if (teleportIndicator != null)
+                teleportIndicator.SetActive(false);
+        }
+    }
 }

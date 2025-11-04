@@ -5,6 +5,9 @@ TagManager:
   serializedVersion: 3
   tags:
   - Anchor
+  - Fireball
+  - Lightning
+  - Ice
   layers:
   - Default
   - TransparentFX
