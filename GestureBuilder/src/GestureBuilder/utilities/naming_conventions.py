@@ -71,6 +71,11 @@ def get_next_joint_indices_list() -> dict:
     for child, parent in previous_map.items():
         if parent is not None:
             next_map[parent] = child
+    
+    for i in range(24):
+        if i not in next_map:
+            next_map[i] = None
+
     return next_map
 
 

@@ -1,7 +1,4 @@
-﻿// ==========================================================
-// 🔹 Data classes for request and response
-// ==========================================================
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -23,15 +20,13 @@ public class GestureInput : BaseGestureData
 		List<List<float>> rightWristRotations
 	) : base(label, leftJointRotations, rightJointRotations, leftWristPositions, rightWristPositions, leftWristRotations, rightWristRotations)
 	{
-
 		this.left_joint_positions = leftJointPositions;
 		this.right_joint_positions = rightJointPositions;
 
-		// Only perform validation if lists are actually initialized
+		// Validation
 		if (leftJointPositions != null &&
 			rightJointPositions != null &&
-			leftWristPositions != null
-		)
+			leftWristPositions != null)
 		{
 			if (leftJointPositions.Count != rightJointPositions.Count ||
 				rightJointPositions.Count != leftWristPositions.Count)
@@ -48,7 +43,48 @@ public class GestureInput : BaseGestureData
 		{
 			throw new InvalidOperationException("One or more joint/wrist lists were not initialized before validation.");
 		}
+	}
 
+	public GestureInput DeepCopy()
+	{
+		// Helper function to copy 3-level nested lists
+		List<List<List<float>>> Copy3DList(List<List<List<float>>> source)
+		{
+			var copy = new List<List<List<float>>>(source.Count);
+			foreach (var frame in source)
+			{
+				var frameCopy = new List<List<float>>(frame.Count);
+				foreach (var joint in frame)
+				{
+					frameCopy.Add(new List<float>(joint)); // copy joint list
+				}
+				copy.Add(frameCopy);
+			}
+			return copy;
+		}
+
+		// Helper function to copy 2D lists
+		List<List<float>> Copy2DList(List<List<float>> source)
+		{
+			var copy = new List<List<float>>(source.Count);
+			foreach (var row in source)
+			{
+				copy.Add(new List<float>(row));
+			}
+			return copy;
+		}
+
+		return new GestureInput(
+			this.label,
+			Copy3DList(this.left_joint_positions),
+			Copy3DList(this.right_joint_positions),
+			Copy3DList(this.left_joint_rotations),
+			Copy3DList(this.right_joint_rotations),
+			Copy2DList(this.left_wrist_positions),
+			Copy2DList(this.right_wrist_positions),
+			Copy2DList(this.left_wrist_rotations),
+			Copy2DList(this.right_wrist_rotations)
+		);
 	}
 
 	public override string ToString()

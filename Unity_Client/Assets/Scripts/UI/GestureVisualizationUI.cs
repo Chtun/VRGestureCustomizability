@@ -86,13 +86,13 @@ public class GestureVisualizationUI : MonoBehaviour
 	}
 
 
-	public void StartVisualizationVideo()
+	public void StartVisualizationVideo(bool continualLoop = false)
 	{
 		if (isPlaying || baseGestureData == null) return;
 
 		isPlaying = true;
 		currentFrame = 0;
-		playbackCoroutine = StartCoroutine(PlayGestureVideo());
+		playbackCoroutine = StartCoroutine(PlayGestureVideo(continualLoop));
 	}
 
 	public void StopVisualizationVideo()
@@ -104,17 +104,29 @@ public class GestureVisualizationUI : MonoBehaviour
 			StopCoroutine(playbackCoroutine);
 	}
 
-	private IEnumerator PlayGestureVideo()
+	private IEnumerator PlayGestureVideo(bool continualLoop)
 	{
 		int frameCount = baseGestureData.left_joint_rotations.Count;
 
-		while (isPlaying && currentFrame < frameCount)
+		bool firstTime = true;
+
+		while (continualLoop || firstTime)
 		{
-			UpdateVisualizationFrame(currentFrame);
+			currentFrame = 0;
 
-			yield return new WaitForSeconds(timeBetweenFrames);
+			while (isPlaying && currentFrame < frameCount)
+			{
+				UpdateVisualizationFrame(currentFrame);
 
-			currentFrame++;
+				yield return new WaitForSeconds(timeBetweenFrames);
+
+				currentFrame++;
+			}
+
+			firstTime = false;
+
+			if (continualLoop)
+				yield return new WaitForSeconds(1.0f);
 		}
 
 		isPlaying = false;

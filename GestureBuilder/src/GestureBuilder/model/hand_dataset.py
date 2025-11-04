@@ -142,7 +142,7 @@ def load_hand_tensors_from_csv(csv_path, joints_list):
         
         # --- Extract joint positions ---
         JR = torch.tensor(df[cols].values, dtype=torch.float32) # (num_frames, num_joints * 4)
-        JR = JR.view(-1, num_joints, 4) # (num_frames, num_joints, 4)
+        JR = JR.view(-1, num_joints, 4) # (num_frames, num_joints * 4)
 
         return JR
 

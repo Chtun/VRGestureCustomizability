@@ -12,6 +12,9 @@ public class GestureRecordingManager : MonoBehaviour
 {
 	private string scriptName = "GestureRecordingManager";
 
+	[SerializeField] private Transform UIContainer;
+	[SerializeField] private string UIContainerName = "UI";
+
 	[Header("Navigation Buttons")]
 	[SerializeField] private Button backButton;
 	[SerializeField] private string backButtonName = "BackButton";
@@ -38,6 +41,9 @@ public class GestureRecordingManager : MonoBehaviour
 	[SerializeField] private string confirmRecordingButtonName = "ConfirmRecordingButton";
 	[SerializeField] private Button redoRecordingButton;
 	[SerializeField] private string redoRecordingButtonName = "RedoRecordingButton";
+	[SerializeField] private string gesturePrefabPath = "Prefabs/GestureVisualizationUI";
+	[SerializeField] private GameObject gestureVisualizationPrefab;
+	[SerializeField] private GestureVisualizationUI gestureVisualizationUI;
 
 	private GestureInput _currentRecordedGesture;
 	public GestureInput CurrentRecordedGesture
@@ -49,7 +55,11 @@ public class GestureRecordingManager : MonoBehaviour
 
 			// Enable the confirm button only if there is a recorded gesture
 			if (confirmRecordingButton != null)
+			{
 				confirmRecordingButton.interactable = _currentRecordedGesture != null;
+				gestureVisualizationUI.StopVisualizationVideo();
+				gestureVisualizationUI.gameObject.SetActive(false);
+			}
 		}
 	}
 
@@ -122,6 +132,34 @@ public class GestureRecordingManager : MonoBehaviour
 			redoRecordingButton = GameObject.Find(redoRecordingButtonName).GetComponent<Button>();
 		if (redoRecordingButton == null)
 			Debug.LogError($"[{scriptName}] RedoRecordingButton not found!");
+
+		// Load prefab dynamically
+		if (gestureVisualizationPrefab == null)
+		{
+			gestureVisualizationPrefab = Resources.Load<GameObject>(gesturePrefabPath);
+
+			if (gestureVisualizationPrefab == null)
+			{
+				Debug.LogError($"Failed to load Gesture Visualization Prefab from path '{gesturePrefabPath}'");
+				return;
+			}
+
+			// Instantiate the prefab
+			GameObject visualizationGO = Instantiate(
+				gestureVisualizationPrefab,
+				UIContainer != null ? UIContainer : null
+			);
+
+			// Get the GestureVisualizationUI component
+			gestureVisualizationUI = visualizationGO.GetComponent<GestureVisualizationUI>();
+			if (gestureVisualizationUI == null)
+			{
+				Debug.LogError("Prefab is missing GestureVisualizationUI component!");
+				return;
+			}
+
+			gestureVisualizationUI.gameObject.SetActive(false);
+		}
 
 		OpenRecordingMenu();
 		SetSelectedActionType(ActionType.CastFireball);
@@ -366,6 +404,16 @@ public class GestureRecordingManager : MonoBehaviour
 			recordedGesture.label = InputManager.ActionTypeName(selectedActionType);
 			CurrentRecordedGesture = recordedGesture;
 			Debug.Log($"[{scriptName}] The recording was stopped successfully.");
+
+			GestureInput copiedRecordedGesture = recordedGesture.DeepCopy();
+
+			copiedRecordedGesture.left_joint_rotations = HandUtilities.ComputeParentRelativeRotations(copiedRecordedGesture.left_joint_rotations);
+			copiedRecordedGesture.right_joint_rotations = HandUtilities.ComputeParentRelativeRotations(copiedRecordedGesture.right_joint_rotations);
+
+			gestureVisualizationUI.gameObject.SetActive(true);
+
+			gestureVisualizationUI.Initialize(copiedRecordedGesture);
+			gestureVisualizationUI.StartVisualizationVideo(continualLoop: true);
 		}
 		else
 		{
@@ -394,6 +442,7 @@ public class GestureRecordingManager : MonoBehaviour
 			Debug.LogError($"[{scriptName}] There is no gesture recording to confirm!");
 		}
 
+		CurrentRecordedGesture = null;
 		dataDisplayCanvas.gameObject.SetActive(false);
 	}
 
