@@ -43,8 +43,8 @@ gesture_data = [load_hand_tensors_from_csv(p, joints_list) for p in csv_paths]
 num_gestures = len(gesture_data)
 for i in range(num_gestures):
     for j in range(i + 1, num_gestures):
-        left_seq1, right_seq1, lw1, rw1 = gesture_data[i]
-        left_seq2, right_seq2, lw2, rw2 = gesture_data[j]
+        left_seq1, right_seq1, lw1, rw1, _, _ = gesture_data[i]
+        left_seq2, right_seq2, lw2, rw2, _, _ = gesture_data[j]
 
         # print("First sequence shapes:")
         # print(left_seq1.shape)

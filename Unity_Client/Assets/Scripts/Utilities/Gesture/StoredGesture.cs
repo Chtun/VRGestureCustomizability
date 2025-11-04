@@ -6,15 +6,15 @@ using System.Collections.Generic;
 using System.Text;
 
 [Serializable]
-public class GestureInput : BaseGestureData
+public class StoredGesture : BaseGestureData
 {
-	public List<List<List<float>>> left_joint_positions;
-	public List<List<List<float>>> right_joint_positions;
+	public List<List<List<float>>> left_hand_vectors;
+	public List<List<List<float>>> right_hand_vectors;
 
-	public GestureInput(
+	public StoredGesture(
 		string label,
-		List<List<List<float>>> leftJointPositions,
-		List<List<List<float>>> rightJointPositions,
+		List<List<List<float>>> leftHandVectors,
+		List<List<List<float>>> rightHandVectors,
 		List<List<List<float>>> leftJointRotations,
 		List<List<List<float>>> rightJointRotations,
 		List<List<float>> leftWristPositions,
@@ -23,23 +23,22 @@ public class GestureInput : BaseGestureData
 		List<List<float>> rightWristRotations
 	) : base(label, leftJointRotations, rightJointRotations, leftWristPositions, rightWristPositions, leftWristRotations, rightWristRotations)
 	{
-
-		this.left_joint_positions = leftJointPositions;
-		this.right_joint_positions = rightJointPositions;
+		this.left_hand_vectors = leftHandVectors;
+		this.right_hand_vectors = rightHandVectors;
 
 		// Only perform validation if lists are actually initialized
-		if (leftJointPositions != null &&
-			rightJointPositions != null &&
+		if (leftHandVectors != null &&
+			rightHandVectors != null &&
 			leftWristPositions != null
 		)
 		{
-			if (leftJointPositions.Count != rightJointPositions.Count ||
-				rightJointPositions.Count != leftWristPositions.Count)
+			if (leftHandVectors.Count != rightHandVectors.Count ||
+				rightHandVectors.Count != leftWristPositions.Count)
 			{
 				throw new InvalidOperationException(
 					$"Mismatched frame counts:\n" +
-					$"left_joint_positions={leftJointPositions.Count}, " +
-					$"right_joint_positions={rightJointPositions.Count}, " +
+					$"left_hand_vectors={leftHandVectors.Count}, " +
+					$"right_hand_vectors={rightHandVectors.Count}, " +
 					$"left_wrist_positions={leftWristPositions.Count}"
 				);
 			}
@@ -48,7 +47,6 @@ public class GestureInput : BaseGestureData
 		{
 			throw new InvalidOperationException("One or more joint/wrist lists were not initialized before validation.");
 		}
-
 	}
 
 	public override string ToString()
@@ -56,11 +54,11 @@ public class GestureInput : BaseGestureData
 		StringBuilder sb = new StringBuilder();
 		sb.AppendLine($"GestureInput: {label}");
 
-		sb.AppendLine("Left Joint Positions:");
-		ListUtilities.AppendNestedList(sb, left_joint_positions);
+		sb.AppendLine("Left Hand Vectors:");
+		ListUtilities.AppendNestedList(sb, left_hand_vectors);
 
-		sb.AppendLine("Right Joint Positions:");
-		ListUtilities.AppendNestedList(sb, right_joint_positions);
+		sb.AppendLine("Right Hand Vectors:");
+		ListUtilities.AppendNestedList(sb, right_hand_vectors);
 
 		sb.AppendLine("Left Joint Rotations:");
 		ListUtilities.AppendNestedList(sb, left_joint_rotations);

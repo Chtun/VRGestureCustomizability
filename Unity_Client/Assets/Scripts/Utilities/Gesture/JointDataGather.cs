@@ -400,7 +400,6 @@ public class JointDataGather : MonoBehaviour
 
 		string[] headers = lines[0].Split(',');
 
-		// Only count position columns for joints
 		List<string> leftJointNames = new List<string>();
 		List<string> rightJointNames = new List<string>();
 
@@ -420,85 +419,131 @@ public class JointDataGather : MonoBehaviour
 			}
 		}
 
-		int numLeftJoints = leftJointNames.Count;  // Should be 24
-		int numRightJoints = rightJointNames.Count; // Should be 24
+		int numLeftJoints = leftJointNames.Count;
+		int numRightJoints = rightJointNames.Count;
 
 		if (numLeftJoints != 24 || numRightJoints != 24)
 		{
 			Debug.LogError("The number of left joints or right joint names in the header of the file do not match! Please ensure file header is correct!");
+			return null;
 		}
 
-		var leftJoints = new List<List<List<float>>>();
-		var rightJoints = new List<List<List<float>>>();
-		var leftWrist = new List<List<float>>();
-		var rightWrist = new List<List<float>>();
+		var leftJointPositions = new List<List<List<float>>>();
+		var rightJointPositions = new List<List<List<float>>>();
+		var leftJointRotations = new List<List<List<float>>>();
+		var rightJointRotations = new List<List<List<float>>>();
+		var leftWristPositions = new List<List<float>>();
+		var rightWristPositions = new List<List<float>>();
+		var leftWristRotations = new List<List<float>>();
+		var rightWristRotations = new List<List<float>>();
 
 		for (int i = 1; i < lines.Length; i++)
 		{
 			string[] cols = lines[i].Split(',');
 			int colIndex = 1; // skip Timestamp
 
-			// LEFT hand positions only
-			var leftFrame = new List<List<float>>();
+			// LEFT hand
+			var leftFramePos = new List<List<float>>();
+			var leftFrameRot = new List<List<float>>();
 			for (int j = 0; j < numLeftJoints; j++)
 			{
+				// position (3)
 				var jointPos = new List<float>
-				{
-					float.Parse(cols[colIndex++], CultureInfo.InvariantCulture), // posX
-                    float.Parse(cols[colIndex++], CultureInfo.InvariantCulture), // posY
-                    float.Parse(cols[colIndex++], CultureInfo.InvariantCulture)  // posZ
-                };
+			{
+				float.Parse(cols[colIndex++], CultureInfo.InvariantCulture),
+				float.Parse(cols[colIndex++], CultureInfo.InvariantCulture),
+				float.Parse(cols[colIndex++], CultureInfo.InvariantCulture)
+			};
 
-				colIndex += 4; // Skip rotation columns (rotX, rotY, rotZ, rotW)
-				leftFrame.Add(jointPos);
+				// rotation (4)
+				var jointRot = new List<float>
+			{
+				float.Parse(cols[colIndex++], CultureInfo.InvariantCulture),
+				float.Parse(cols[colIndex++], CultureInfo.InvariantCulture),
+				float.Parse(cols[colIndex++], CultureInfo.InvariantCulture),
+				float.Parse(cols[colIndex++], CultureInfo.InvariantCulture)
+			};
+
+				leftFramePos.Add(jointPos);
+				leftFrameRot.Add(jointRot);
 			}
-			leftJoints.Add(leftFrame);
+			leftJointPositions.Add(leftFramePos);
+			leftJointRotations.Add(leftFrameRot);
 
-			// RIGHT hand positions only
-			var rightFrame = new List<List<float>>();
+			// RIGHT hand
+			var rightFramePos = new List<List<float>>();
+			var rightFrameRot = new List<List<float>>();
 			for (int j = 0; j < numRightJoints; j++)
 			{
 				var jointPos = new List<float>
-				{
-					float.Parse(cols[colIndex++], CultureInfo.InvariantCulture), // posX
-                    float.Parse(cols[colIndex++], CultureInfo.InvariantCulture), // posY
-                    float.Parse(cols[colIndex++], CultureInfo.InvariantCulture)  // posZ
-                };
-				colIndex += 4; // Skip rotation columns
-				rightFrame.Add(jointPos);
+			{
+				float.Parse(cols[colIndex++], CultureInfo.InvariantCulture),
+				float.Parse(cols[colIndex++], CultureInfo.InvariantCulture),
+				float.Parse(cols[colIndex++], CultureInfo.InvariantCulture)
+			};
+
+				var jointRot = new List<float>
+			{
+				float.Parse(cols[colIndex++], CultureInfo.InvariantCulture),
+				float.Parse(cols[colIndex++], CultureInfo.InvariantCulture),
+				float.Parse(cols[colIndex++], CultureInfo.InvariantCulture),
+				float.Parse(cols[colIndex++], CultureInfo.InvariantCulture)
+			};
+
+				rightFramePos.Add(jointPos);
+				rightFrameRot.Add(jointRot);
 			}
-			rightJoints.Add(rightFrame);
+			rightJointPositions.Add(rightFramePos);
+			rightJointRotations.Add(rightFrameRot);
 
 			// LEFT wrist (root)
-			var leftRoot = new List<float>
-			{
-				float.Parse(cols[colIndex++], CultureInfo.InvariantCulture),
-				float.Parse(cols[colIndex++], CultureInfo.InvariantCulture),
-				float.Parse(cols[colIndex++], CultureInfo.InvariantCulture)
-			};
-			colIndex += 4; // Skip rotation
-			leftWrist.Add(leftRoot);
+			var leftRootPos = new List<float>
+		{
+			float.Parse(cols[colIndex++], CultureInfo.InvariantCulture),
+			float.Parse(cols[colIndex++], CultureInfo.InvariantCulture),
+			float.Parse(cols[colIndex++], CultureInfo.InvariantCulture)
+		};
+			var leftRootRot = new List<float>
+		{
+			float.Parse(cols[colIndex++], CultureInfo.InvariantCulture),
+			float.Parse(cols[colIndex++], CultureInfo.InvariantCulture),
+			float.Parse(cols[colIndex++], CultureInfo.InvariantCulture),
+			float.Parse(cols[colIndex++], CultureInfo.InvariantCulture)
+		};
+			leftWristPositions.Add(leftRootPos);
+			leftWristRotations.Add(leftRootRot);
 
 			// RIGHT wrist (root)
-			var rightRoot = new List<float>
-			{
-				float.Parse(cols[colIndex++], CultureInfo.InvariantCulture),
-				float.Parse(cols[colIndex++], CultureInfo.InvariantCulture),
-				float.Parse(cols[colIndex++], CultureInfo.InvariantCulture)
-			};
-			// skip remaining rotations
-			colIndex += 4;
-			rightWrist.Add(rightRoot);
+			var rightRootPos = new List<float>
+		{
+			float.Parse(cols[colIndex++], CultureInfo.InvariantCulture),
+			float.Parse(cols[colIndex++], CultureInfo.InvariantCulture),
+			float.Parse(cols[colIndex++], CultureInfo.InvariantCulture)
+		};
+			var rightRootRot = new List<float>
+		{
+			float.Parse(cols[colIndex++], CultureInfo.InvariantCulture),
+			float.Parse(cols[colIndex++], CultureInfo.InvariantCulture),
+			float.Parse(cols[colIndex++], CultureInfo.InvariantCulture),
+			float.Parse(cols[colIndex++], CultureInfo.InvariantCulture)
+		};
+			rightWristPositions.Add(rightRootPos);
+			rightWristRotations.Add(rightRootRot);
 		}
 
 		return new GestureInput(
 			gestureLabel,
-			leftJoints,
-			rightJoints,
-			leftWrist,
-			rightWrist
+			leftJointPositions,
+			rightJointPositions,
+			leftJointRotations,
+			rightJointRotations,
+			leftWristPositions,
+			rightWristPositions,
+			 leftWristRotations,
+			 rightWristRotations
 		);
 	}
+
 
 
 

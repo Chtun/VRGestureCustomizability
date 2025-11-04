@@ -1,4 +1,4 @@
-using Newtonsoft.Json.Linq;
+﻿using Newtonsoft.Json.Linq;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -23,6 +23,9 @@ public class GestureSystemManager : MonoBehaviour
 
 	[SerializeField]
 	private Dictionary<string, ActionType> GestureKeyToActionType;
+
+	private Dictionary<string, StoredGesture> _storedGestures;
+	public Dictionary<string, StoredGesture> StoredGestures => _storedGestures;
 
 
 	private string currentRecordedGestureKey;
@@ -74,9 +77,6 @@ public class GestureSystemManager : MonoBehaviour
 		// If recording data, start a coroutine that waits for tracking before recording
 		if (jointDataGather != null && recordJointData)
 			StartCoroutine(jointDataGather.WaitForHandsThenRecord());
-
-
-		Debug.Log(JointDataGather.ReadCSVToGestureInput("C:\\Users\\chtun\\AppData\\LocalLow\\DefaultCompany\\Unity_VR_Template\\live_recordings-Cast Fireball 2.csv", "test").ToString());
 	}
 
 	void OnDestroy()
@@ -125,7 +125,7 @@ public class GestureSystemManager : MonoBehaviour
 
 		if (gestureHTTPClient != null)
 		{
-			StartCoroutine(gestureHTTPClient.GetGestures(OnGesturesFetched));
+			StartCoroutine(gestureHTTPClient.GetGestures(useDefaultSystem, OnGesturesFetched));
 			return true;
 		}
 
@@ -301,29 +301,36 @@ public class GestureSystemManager : MonoBehaviour
 
 		Debug.Log($"[{scriptName}] Gestures loaded.");
 
-		// Parse JSON
 		var jsonObj = JObject.Parse(jsonResponse);
+		_storedGestures = new Dictionary<string, StoredGesture>();
 
-		List<string> fetchedKeys = new List<string>();
-
-		// Extract all gesture keys
-		foreach (var gestureKey in jsonObj.Properties())
+		foreach (var gestureProperty in jsonObj.Properties())
 		{
-			Debug.Log($"Gesture Key: {gestureKey.Name}");
-			fetchedKeys.Add(gestureKey.Name);
+			string gestureKey = gestureProperty.Name;
+			JArray templates = (JArray)gestureProperty.Value;
+
+			// You can loop over all templates if needed; here we just take the first for simplicity.
+			var template = templates.First as JObject;
+
+			var storedGesture = new StoredGesture(
+				label: gestureKey,
+				leftHandVectors: ListUtilities.Parse3DList((JArray)template["left_hand_vectors"]),
+				rightHandVectors: ListUtilities.Parse3DList((JArray)template["right_hand_vectors"]),
+				leftJointRotations: ListUtilities.Parse3DList((JArray)template["left_joint_rotations"]),
+				rightJointRotations: ListUtilities.Parse3DList((JArray)template["right_joint_rotations"]),
+				leftWristPositions: ListUtilities.Parse2DList((JArray)template["left_wrist_positions"]),
+				rightWristPositions: ListUtilities.Parse2DList((JArray)template["right_wrist_positions"]),
+				leftWristRotations: ListUtilities.Parse2DList((JArray)template["left_wrist_rotations"]),
+				rightWristRotations: ListUtilities.Parse2DList((JArray)template["right_wrist_rotations"])
+			);
+
+			_storedGestures[gestureKey] = storedGesture;
+			Debug.Log($"[{scriptName}] Stored gesture '{gestureKey}' with {storedGesture.left_hand_vectors.Count} frames.");
 		}
 
-		// For those that are still active here, inactivate them if they were not in the fetched list.
-		foreach (string gestureKey in GestureKeyToActionType.Keys.ToList())
-		{
-			Debug.Log($"Checking gesture key: {gestureKey}");
-			if (!fetchedKeys.Contains(gestureKey))
-			{
-				Debug.Log("Gesture not in the fetched keys!");
-				GestureKeyToActionType[gestureKey] = ActionType.Inactivated;
-			}
-		}
+		Debug.Log($"[{scriptName}] Finished loading {_storedGestures.Count} gestures.");
 	}
+
 
 	/// <summary>
 	/// Handles an incoming gesture message from Gesture Recognition server.

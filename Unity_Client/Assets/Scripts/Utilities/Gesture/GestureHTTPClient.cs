@@ -115,9 +115,12 @@ public class GestureHTTPClient : MonoBehaviour
 	// ==========================================================
 	// 🔹 GET /get_gestures
 	// ==========================================================
-	public IEnumerator GetGestures(Action<string> onComplete)
+	public IEnumerator GetGestures(bool useDefaultSystem, Action<string> onComplete)
 	{
-		using (UnityWebRequest www = UnityWebRequest.Get($"{baseUrl}/get_gestures"))
+		// Append the query parameter to the URL
+		string url = $"{baseUrl}/get_gestures?useDefaultSystem={useDefaultSystem.ToString().ToLower()}";
+
+		using (UnityWebRequest www = UnityWebRequest.Get(url))
 		{
 			yield return www.SendWebRequest();
 

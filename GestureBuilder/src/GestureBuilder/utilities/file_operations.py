@@ -22,8 +22,12 @@ def save_gestures_to_json(
                 serializable_gestures[gesture_key].append({
                     "left_hand_vectors": template["left_hand_vectors"].cpu().tolist(),
                     "right_hand_vectors": template["right_hand_vectors"].cpu().tolist(),
-                    "left_wrist_root": template["left_wrist_root"].cpu().tolist(),
-                    "right_wrist_root": template["right_wrist_root"].cpu().tolist(),
+                    "left_joint_rotations": template["left_joint_rotations"].cpu().tolist(),
+                    "right_joint_rotations": template["right_joint_rotations"].cpu().tolist(),
+                    "left_wrist_positions": template["left_wrist_positions"].cpu().tolist(),
+                    "right_wrist_positions": template["right_wrist_positions"].cpu().tolist(),
+                    "left_wrist_rotations": template["left_wrist_rotations"].cpu().tolist(),
+                    "right_wrist_rotations": template["right_wrist_rotations"].cpu().tolist(),
                 })
 
         # Ensure parent directory exists
@@ -59,8 +63,12 @@ def load_gestures_from_json(
                 loaded_gestures[gesture_key].append({
                     "left_hand_vectors": torch.tensor(t["left_hand_vectors"], dtype=torch.float32),
                     "right_hand_vectors": torch.tensor(t["right_hand_vectors"], dtype=torch.float32),
-                    "left_wrist_root": torch.tensor(t["left_wrist_root"], dtype=torch.float32),
-                    "right_wrist_root": torch.tensor(t["right_wrist_root"], dtype=torch.float32),
+                    "left_joint_rotations": torch.tensor(t["left_joint_rotations"], dtype=torch.float32),
+                    "right_joint_rotations": torch.tensor(t["right_joint_rotations"], dtype=torch.float32),
+                    "left_wrist_positions": torch.tensor(t["left_wrist_positions"], dtype=torch.float32),
+                    "right_wrist_positions": torch.tensor(t["right_wrist_positions"], dtype=torch.float32),
+                    "left_wrist_rotations": torch.tensor(t["left_wrist_rotations"], dtype=torch.float32),
+                    "right_wrist_rotations": torch.tensor(t["right_wrist_rotations"], dtype=torch.float32),
                 })
 
         print(f"[INFO] Loaded {len(loaded_gestures)} gesture templates from JSON.")

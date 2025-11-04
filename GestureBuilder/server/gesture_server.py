@@ -1,7 +1,7 @@
 import torch
 import json
 from collections import deque
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 from pydantic import BaseModel
@@ -16,6 +16,7 @@ import yaml
 from GestureBuilder.model.VQ_VAE import VQVAE
 from GestureBuilder.utilities.naming_conventions import get_hand_joint_list
 from GestureBuilder.utilities.sequence_comparison import sequence_distance
+from GestureBuilder.utilities.hand_computations import compute_parent_relative_rotations
 from GestureBuilder.model.hand_dataset import joints_dict_to_tensor, load_hand_tensors_from_csv, convert_joint_to_hand_vector
 from GestureBuilder.utilities.file_operations import load_gestures_from_json, save_gestures_to_json
 
@@ -80,12 +81,18 @@ for pair in gesture_template_paths:
     if gesture_key not in default_gesture_templates:
         default_gesture_templates[gesture_key] = []
 
-    left_seq, right_seq, lw, rw = load_hand_tensors_from_csv(template_path, JOINTS_LIST)
+    (left_hand_vectors, right_hand_vectors, left_joint_rotations, right_joint_rotations,
+     left_wrist_positions, right_wrist_positions,
+     left_wrist_rotations, right_wrist_rotations) = load_hand_tensors_from_csv(template_path, JOINTS_LIST)
     gesture_dict = {
-        "left_hand_vectors": left_seq,
-        "right_hand_vectors": right_seq,
-        "left_wrist_root": lw,
-        "right_wrist_root": rw
+        "left_hand_vectors": left_hand_vectors, # shape: (num_frames, 72)
+        "right_hand_vectors": right_hand_vectors, # shape: (num_frames, 72)
+        "left_joint_rotations": left_joint_rotations, # shape: (num_frames, 24, 4)
+        "right_joint_rotations": right_joint_rotations, # shape: (num_frames, 24, 4)
+        "left_wrist_positions": left_wrist_positions, # shape: (num_frames, 3)
+        "right_wrist_positions": right_wrist_positions, # shape: (num_frames, 3)
+        "left_wrist_rotations": left_wrist_rotations, # shape: (num_frames, 4)
+        "right_wrist_rotations": right_wrist_rotations # shape: (num_frames, 4)
     }
 
     default_gesture_templates[gesture_key].append(gesture_dict)
@@ -95,10 +102,14 @@ print(f"Default gesture keys: {default_gesture_templates.keys()}")
 # === HTTP Endpoint to add a new gesture ===
 class GestureInput(BaseModel):
     label: str
-    right_joints: List[List[List[float]]]
-    left_joints: List[List[List[float]]]
-    left_wrist: List[List[float]]
-    right_wrist: List[List[float]]
+    left_joint_positions: List[List[List[float]]] # shape: (num_frames, 24, 3)
+    right_joint_positions: List[List[List[float]]] # shape: (num_frames, 24, 3)
+    left_joint_rotations: List[List[List[float]]] # shape: (num_frames, 24, 4)
+    right_joint_rotations: List[List[List[float]]] # shape: (num_frames, 24, 4)
+    left_wrist_positions: List[List[float]] # shape: (num_frames, 3)
+    right_wrist_positions: List[List[float]] # shape: (num_frames, 3)
+    left_wrist_rotations: List[List[float]] # shape: (num_frames, 4)
+    right_wrist_rotations: List[List[float]] # shape: (num_frames, 4)
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -195,8 +206,8 @@ async def websocket_endpoint(websocket: WebSocket):
                                         seq_right_wrist,
                                         template["left_hand_vectors"],
                                         template["right_hand_vectors"],
-                                        template["left_wrist_root"],
-                                        template["right_wrist_root"],
+                                        template["left_wrist_positions"],
+                                        template["right_wrist_positions"],
                                     )
                                     futures.append(future)
                                     template_keys.append(gesture_key)
@@ -221,8 +232,8 @@ async def websocket_endpoint(websocket: WebSocket):
                                         seq_right_wrist,
                                         template["left_hand_vectors"],
                                         template["right_hand_vectors"],
-                                        template["left_wrist_root"],
-                                        template["right_wrist_root"],
+                                        template["left_wrist_positions"],
+                                        template["right_wrist_positions"],
                                     )
                                     futures.append(future)
                                     template_keys.append(gesture_key)
@@ -293,44 +304,77 @@ async def add_gesture(gesture: GestureInput):
             }
 
         # === Validate sequence lengths ===
-        seq_len_left_joints = len(gesture.left_joints)
-        seq_len_right_joints = len(gesture.right_joints)
-        seq_len_left_wrist = len(gesture.left_wrist)
-        seq_len_right_wrist = len(gesture.right_wrist)
+        seq_len_left_joint_positions = len(gesture.left_joint_positions)
+        seq_len_right_joint_positions = len(gesture.right_joint_positions)
+        seq_len_left_joint_rotations = len(gesture.left_joint_rotations)
+        seq_len_right_joint_rotations = len(gesture.right_joint_rotations)
+        seq_len_left_wrist_positions = len(gesture.left_wrist_positions)
+        seq_len_right_wrist_positions = len(gesture.right_wrist_positions)
+        seq_len_left_wrist_rotations = len(gesture.left_joint_rotations)
+        seq_len_right_wrist_rotations = len(gesture.right_wrist_rotations)
 
-        if not (seq_len_left_joints == seq_len_right_joints == seq_len_left_wrist == seq_len_right_wrist):
+        if not (seq_len_left_joint_positions == seq_len_right_joint_positions
+                == seq_len_left_joint_rotations == seq_len_right_joint_rotations
+                == seq_len_left_wrist_positions == seq_len_right_wrist_positions
+                == seq_len_left_wrist_rotations == seq_len_right_wrist_rotations):
             raise ValueError(
-                f"All sequences must have the same length, got: "
-                f"left_joints={seq_len_left_joints}, right_joints={seq_len_right_joints}, "
-                f"left_wrist={seq_len_left_wrist}, right_wrist={seq_len_right_wrist}"
+                f"All sequences must have the same length, got lengths: "
+                f"left_joint_positions={seq_len_left_joint_positions}, right_joint_positions={seq_len_right_joint_positions}, "
+                f"left_joint_rotations={seq_len_left_joint_rotations}, right_joint_rotations={seq_len_right_joint_rotations}, "
+                f"left_wrist_positions={seq_len_left_wrist_positions}, right_wrist_positions={seq_len_right_wrist_positions}, "
+                f"left_wrist_rotations={seq_len_left_wrist_rotations}, right_wrist_rotations={seq_len_right_wrist_rotations}"
             )
 
         # === Convert to tensors ===
-        left_joints = torch.tensor(gesture.left_joints, dtype=torch.float32)
-        right_joints = torch.tensor(gesture.right_joints, dtype=torch.float32)
-        left_wrist_root = torch.tensor(gesture.left_wrist, dtype=torch.float32)
-        right_wrist_root = torch.tensor(gesture.right_wrist, dtype=torch.float32)
+        left_joint_positions = torch.tensor(gesture.left_joint_positions, dtype=torch.float32)
+        right_joint_positions = torch.tensor(gesture.right_joint_positions, dtype=torch.float32)
+        left_joint_rotations = torch.tensor(gesture.left_joint_rotations, dtype=torch.float32)
+        right_joint_rotations = torch.tensor(gesture.right_joint_rotations, dtype=torch.float32)
+        left_wrist_positions = torch.tensor(gesture.left_wrist_positions, dtype=torch.float32)
+        right_wrist_positions = torch.tensor(gesture.right_wrist_positions, dtype=torch.float32)
+        left_wrist_rotations = torch.tensor(gesture.left_wrist_rotations, dtype=torch.float32)
+        right_wrist_rotations = torch.tensor(gesture.right_wrist_rotations, dtype=torch.float32)
 
         # === Validate per-frame structure ===
-        if left_joints.ndim != 3 or left_joints.shape[-1] != 3:
-            raise ValueError(f"left_joints must have shape (B, 24, 3), got {left_joints.shape}")
-        if right_joints.ndim != 3 or right_joints.shape[-1] != 3:
-            raise ValueError(f"right_joints must have shape (B, 24, 3), got {right_joints.shape}")
+        if left_joint_positions.ndim != 3 or left_joint_positions.shape[-1] != 3:
+            raise ValueError(f"left_joint_positions must have shape (B, 24, 3), got {left_joint_positions.shape}")
+        if right_joint_positions.ndim != 3 or right_joint_positions.shape[-1] != 3:
+            raise ValueError(f"right_joint_positions must have shape (B, 24, 3), got {right_joint_positions.shape}")
+        if left_joint_rotations.ndim != 3 or left_joint_rotations.shape[-1] != 4:
+            raise ValueError(f"left_joints_rotations must have shape (B, 24, 4), got {left_joint_rotations.shape}")
+        if right_joint_rotations.ndim != 3 or right_joint_rotations.shape[-1] != 4:
+            raise ValueError(f"right_joints_rotations must have shape (B, 24, 3), got {right_joint_rotations.shape}")
+        if left_wrist_positions.ndim != 2 or left_wrist_positions.shape[-1] != 3:
+            raise ValueError(f"left_wrist_positions must have shape (B, 3), got {left_wrist_positions.shape}")
+        if right_wrist_positions.ndim != 2 or right_wrist_positions.shape[-1] != 3:
+            raise ValueError(f"right_wrist_positions must have shape (B, 3), got {right_wrist_positions.shape}")
+        if left_wrist_rotations.ndim != 2 or left_wrist_rotations.shape[-1] != 4:
+            raise ValueError(f"left_wrist_rotations must have shape (B, 4), got {left_wrist_rotations.shape}")
+        if right_wrist_rotations.ndim != 2 or right_wrist_rotations.shape[-1] != 4:
+            raise ValueError(f"right_wrist_rotations must have shape (B, 4), got {right_wrist_rotations.shape}")
 
         # === Convert joints to hand vectors ===
-        left_hand_vectors = convert_joint_to_hand_vector(left_joints)
-        right_hand_vectors = convert_joint_to_hand_vector(right_joints)
+        left_hand_vectors = convert_joint_to_hand_vector(left_joint_positions)
+        right_hand_vectors = convert_joint_to_hand_vector(right_joint_positions)
 
         # === Flatten to shape (num_frames, 72) ===
         left_hand_vectors = left_hand_vectors.reshape(left_hand_vectors.shape[0], -1)
         right_hand_vectors = right_hand_vectors.reshape(right_hand_vectors.shape[0], -1)
 
+        # --- Convert left/right joint rotations to parent-relative ---
+        left_joint_rotations = compute_parent_relative_rotations(left_joint_rotations)
+        right_joint_rotations = compute_parent_relative_rotations(right_joint_rotations)
+
         # === Store the gesture ===
         gesture_dict = {
-            "left_hand_vectors": left_hand_vectors,   # shape: (num_frames, 72)
+            "left_hand_vectors": left_hand_vectors, # shape: (num_frames, 72)
             "right_hand_vectors": right_hand_vectors, # shape: (num_frames, 72)
-            "left_wrist_root": left_wrist_root, # shape: (num_frames, 3)
-            "right_wrist_root": right_wrist_root, # shape: (num_frames, 3)
+            "left_joint_rotations": left_joint_rotations, # shape: (num_frames, 24, 4)
+            "right_joint_rotations": right_joint_rotations, # shape: (num_frames, 24, 4)
+            "left_wrist_positions": left_wrist_positions, # shape: (num_frames, 3)
+            "right_wrist_positions": right_wrist_positions, # shape: (num_frames, 3)
+            "left_wrist_rotations": left_wrist_rotations, # shape: (num_frames, 4)
+            "right_wrist_rotations": right_wrist_rotations, # shape: (num_frames, 4)
         }
 
         if gesture.label not in gesture_templates:
@@ -345,12 +389,12 @@ async def add_gesture(gesture: GestureInput):
                         vqvae_model,
                         gesture_dict["left_hand_vectors"],
                         gesture_dict["right_hand_vectors"],
-                        gesture_dict["left_wrist_root"],
-                        gesture_dict["right_wrist_root"],
+                        gesture_dict["left_wrist_positions"],
+                        gesture_dict["right_wrist_positions"],
                         template["left_hand_vectors"],
                         template["right_hand_vectors"],
-                        template["left_wrist_root"],
-                        template["right_wrist_root"]
+                        template["left_wrist_positions"],
+                        template["right_wrist_positions"]
                     ) < 2 * MATCH_THRESHOLD:
                         return {
                             "status_code": add_gesture_statuses["Too Similar To Other"],
@@ -363,19 +407,17 @@ async def add_gesture(gesture: GestureInput):
                         vqvae_model,
                         gesture_dict["left_hand_vectors"],
                         gesture_dict["right_hand_vectors"],
-                        gesture_dict["left_wrist_root"],
-                        gesture_dict["right_wrist_root"],
+                        gesture_dict["left_wrist_positions"],
+                        gesture_dict["right_wrist_positions"],
                         template["left_hand_vectors"],
                         template["right_hand_vectors"],
-                        template["left_wrist_root"],
-                        template["right_wrist_root"]
+                        template["left_wrist_positions"],
+                        template["right_wrist_positions"]
                     ) > 3 * MATCH_THRESHOLD:
                         return {
                             "status_code": add_gesture_statuses["Too Different From Group"],
                             "message": f"Gesture '{gesture.label}' was too far away from another template in its group.",
                         }
-
-
 
         gesture_templates[gesture.label].append(gesture_dict)
 
@@ -458,24 +500,37 @@ async def remove_all_gestures():
 
 
 @app.get("/get_gestures")
-async def get_gestures():
+async def get_gestures(useDefaultSystem: bool = Query(False, description="Whether to use default or custom gesture templates.")):
+    global default_gesture_templates
+
+    # Load either default or custom gestures
+    if useDefaultSystem:
+        gesture_templates: Dict[str, List[Dict[str, torch.Tensor]]] = default_gesture_templates
+    else:
+        gesture_templates: Dict[str, List[Dict[str, torch.Tensor]]] = load_gestures_from_json(cfg['paths']['gesture_template_json'])
+
     serializable_gestures = {}
-    gesture_templates: Dict[str, List[Dict[str, torch.Tensor]]] = load_gestures_from_json(cfg['paths']['gesture_template_json'])
 
     def tensor_to_list(tensor):
-        # Convert PyTorch tensor to nested lists
         return tensor.cpu().tolist()
 
     for gesture_key, templates in gesture_templates.items():
         serializable_gestures[gesture_key] = []
-
         for template in templates:
+            left_vectors_reshaped = template["left_hand_vectors"].reshape(-1, 24, 3)
+            right_vectors_reshaped = template["right_hand_vectors"].reshape(-1, 24, 3)
+
             serializable_template = {
-                "left_hand_vectors": tensor_to_list(template["left_hand_vectors"]),
-                "right_hand_vectors": tensor_to_list(template["right_hand_vectors"]),
-                "left_wrist_root": tensor_to_list(template["left_wrist_root"]),
-                "right_wrist_root": tensor_to_list(template["right_wrist_root"]),
+                "left_hand_vectors": tensor_to_list(left_vectors_reshaped),
+                "right_hand_vectors": tensor_to_list(right_vectors_reshaped),
+                "left_joint_rotations": tensor_to_list(template["left_joint_rotations"]),
+                "right_joint_rotations": tensor_to_list(template["right_joint_rotations"]),
+                "left_wrist_positions": tensor_to_list(template["left_wrist_positions"]),
+                "right_wrist_positions": tensor_to_list(template["right_wrist_positions"]),
+                "left_wrist_rotations": tensor_to_list(template["left_wrist_rotations"]),
+                "right_wrist_rotations": tensor_to_list(template["right_wrist_rotations"]),
             }
+
             serializable_gestures[gesture_key].append(serializable_template)
 
     return serializable_gestures

@@ -285,6 +285,9 @@ public class GestureRecordingManager : MonoBehaviour
 
 	private void OnSpaceBarPressed()
 	{
+		if (CurrentRecordedGesture != null)
+			return;
+
 		if (GestureSystemManager.instance.IsRecording())
 		{
 			StopRecording();
@@ -360,6 +363,7 @@ public class GestureRecordingManager : MonoBehaviour
 
 		if (successfulRecording)
 		{
+			recordedGesture.label = InputManager.ActionTypeName(selectedActionType);
 			CurrentRecordedGesture = recordedGesture;
 			Debug.Log($"[{scriptName}] The recording was stopped successfully.");
 		}

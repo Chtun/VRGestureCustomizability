@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional as F
 
-from GestureBuilder.utilities.naming_conventions import *
+from GestureBuilder.utilities.naming_conventions import get_finger_indices_list, get_connected_indices_list, get_next_joint_indices_list
 
 # ==========================================================
 # 🔹 Hand Distance Function: Denoised Cosine Distance
@@ -73,3 +73,61 @@ def convert_joint_to_hand_vector(JA: torch.Tensor) -> torch.Tensor:
 
     return VA
 
+def quat_inverse_xyzw(q: torch.Tensor) -> torch.Tensor:
+    """
+    Inverse/conjugate for a unit quaternion stored as (x, y, z, w).
+    For unit quaternions inverse = conjugate = (-x, -y, -z, w)
+    q: shape (4,) or (...,4)
+    returns tensor with same shape
+    """
+    # keep dtype/device
+    return torch.stack([-q[..., 0], -q[..., 1], -q[..., 2], q[..., 3]], dim=-1)
+
+def quat_mult_xyzw(q1: torch.Tensor, q2: torch.Tensor) -> torch.Tensor:
+    """
+    Multiply q1 * q2 where quaternions are stored as (x, y, z, w).
+    Uses the formula where scalar is w = q[3] and vector is v = (x,y,z).
+    Inputs q1, q2: shape (...,4) or (4,)
+    Returns product in same shape/order (x,y,z,w).
+    """
+    # extract components
+    x1, y1, z1, w1 = q1[..., 0], q1[..., 1], q1[..., 2], q1[..., 3]
+    x2, y2, z2, w2 = q2[..., 0], q2[..., 1], q2[..., 2], q2[..., 3]
+
+    # scalar part
+    w = w1*w2 - (x1*x2 + y1*y2 + z1*z2)
+
+    # vector part: v = w1*v2 + w2*v1 + v1 x v2
+    vx = w1*x2 + w2*x1 + (y1*z2 - z1*y2)
+    vy = w1*y2 + w2*y1 + (z1*x2 - x1*z2)
+    vz = w1*z2 + w2*z1 + (x1*y2 - y1*x2)
+
+    return torch.stack([vx, vy, vz, w], dim=-1)
+
+def compute_parent_relative_rotations(joint_rotations: torch.Tensor) -> torch.Tensor:
+    """
+    joint_rotations: (num_frames, num_joints, 4) with ordering (x,y,z,w)
+    Returns relative rotations in the same ordering (x,y,z,w).
+    We compute q_relative = q_child * inverse(q_parent) (both in wrist space),
+    so the relative rotation maps from parent frame into child frame.
+    """
+    num_frames, num_joints, _ = joint_rotations.shape
+    relative_rotations = torch.zeros_like(joint_rotations)
+    connected_indices = get_connected_indices_list()  # previous mapping: current -> previous (parent)
+
+    for f in range(num_frames):
+        for j in range(num_joints):
+            parent_idx = connected_indices[j]  # may be None
+            # Use detach().clone() to avoid warnings and keep device/dtype
+            q = joint_rotations[f, j].detach().clone()  # (4,) in (x,y,z,w)
+            if parent_idx is None:
+                # If there's no parent in the finger chain, keep as-is
+                relative_rotations[f, j] = q
+            else:
+                parent_q = joint_rotations[f, parent_idx].detach().clone()
+                parent_q_inv = quat_inverse_xyzw(parent_q)
+                # q_relative = q_child * inverse(parent_q)
+                q_relative = quat_mult_xyzw(q, parent_q_inv)
+                relative_rotations[f, j] = q_relative
+
+    return relative_rotations

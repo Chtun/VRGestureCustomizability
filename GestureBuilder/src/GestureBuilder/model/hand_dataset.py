@@ -4,7 +4,7 @@ import pandas as pd
 from pathlib import Path
 
 from GestureBuilder.utilities.naming_conventions import get_hand_joint_list
-from GestureBuilder.utilities.hand_computations import convert_joint_to_hand_vector
+from GestureBuilder.utilities.hand_computations import convert_joint_to_hand_vector, compute_parent_relative_rotations
 
 # ==========================================================
 # 🔹 Hand Dataset
@@ -100,6 +100,8 @@ def load_hand_tensors_from_csv(csv_path, joints_list):
     Returns:
         left_flat (Tensor): (num_frames, num_joints * 3)
         right_flat (Tensor): (num_frames, num_joints * 3)
+        left_rotations (Tensor): (num_frames, num_joints, 4)
+        right_rotations (Tensor): (num_frames, num_joints, 4)
         left_wrist (Tensor): (num_frames, 3)
         right_wrist (Tensor): (num_frames, 3)
     """
@@ -126,19 +128,54 @@ def load_hand_tensors_from_csv(csv_path, joints_list):
         # --- Flatten for VQVAE input ---
         VA_flat = VA.view(VA.shape[0], -1)  # (num_frames, num_joints * 3)
         return VA_flat
+    
+    def extract_joint_rotations(prefix):
+        # --- Build column names ---
+        cols = []
+        for j in joints_list:
+            cols.extend([
+                f"{prefix}{j}_rotX",
+                f"{prefix}{j}_rotY",
+                f"{prefix}{j}_rotZ",
+                f"{prefix}{j}_rotW",
+            ])
+        
+        # --- Extract joint positions ---
+        JR = torch.tensor(df[cols].values, dtype=torch.float32) # (num_frames, num_joints * 4)
+        JR = JR.view(-1, num_joints, 4) # (num_frames, num_joints, 4)
 
-    # --- Extract both hands ---
-    left_flat = extract_hand_joints("L_")
-    right_flat = extract_hand_joints("R_")
+        return JR
+
+    # --- Extract each hand's joint positions. ---
+    left_hand_vectors = extract_hand_joints("L_")
+    right_hand_vectors = extract_hand_joints("R_")
+
+    # --- Extract each hand's joint rotations. ---
+    left_joint_rotations = extract_joint_rotations("L_")
+    right_joint_rotations = extract_joint_rotations("R_")
+
+    # --- Convert left/right joint rotations to parent-relative ---
+    left_joint_rotations = compute_parent_relative_rotations(left_joint_rotations)
+    right_joint_rotations = compute_parent_relative_rotations(right_joint_rotations)
 
     # --- Extract wrist positions (consistent with server-side keys) ---
-    left_wrist = torch.tensor(
+    left_wrist_positions = torch.tensor(
         df[["L_Root_posX", "L_Root_posY", "L_Root_posZ"]].values,
         dtype=torch.float32
     )
-    right_wrist = torch.tensor(
+    right_wrist_positions = torch.tensor(
         df[["R_Root_posX", "R_Root_posY", "R_Root_posZ"]].values,
         dtype=torch.float32
     )
 
-    return left_flat, right_flat, left_wrist, right_wrist
+    left_wrist_rotations = torch.tensor(
+        df[["L_Root_rotX", "L_Root_rotY", "L_Root_rotZ", "L_Root_rotW"]].values,
+        dtype=torch.float32
+    )
+    right_wrist_rotations = torch.tensor(
+        df[["R_Root_rotX", "R_Root_rotY", "R_Root_rotZ", "R_Root_rotW"]].values,
+        dtype=torch.float32
+    )
+
+    return (left_hand_vectors, right_hand_vectors, left_joint_rotations, right_joint_rotations,
+            left_wrist_positions, right_wrist_positions, left_wrist_rotations, right_wrist_rotations)

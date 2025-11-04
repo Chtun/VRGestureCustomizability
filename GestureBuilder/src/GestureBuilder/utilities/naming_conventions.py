@@ -61,6 +61,18 @@ def get_connected_indices_list() -> dict:
         23: None
     }
 
+def get_next_joint_indices_list() -> dict:
+    """
+    For each index, specifies the index that comes *after* it (i.e., the next joint in the chain).
+    """
+    previous_map = get_connected_indices_list()
+    next_map = {}
+
+    for child, parent in previous_map.items():
+        if parent is not None:
+            next_map[parent] = child
+    return next_map
+
 
 def get_finger_indices_list() -> list[list]:
     """
