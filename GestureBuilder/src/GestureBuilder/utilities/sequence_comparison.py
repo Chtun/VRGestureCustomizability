@@ -13,7 +13,7 @@ def compute_frame_distance_batch(
     left_wrist_vel_A, right_wrist_vel_A,
     left_wrist_vel_B, right_wrist_vel_B,
     alpha_wrist: float = 0.5,
-    LATENT_MAX: float = 4.0
+    LATENT_MAX: float = 2.0
 ):
     """
     Compute pairwise frame-wise distances between two sequences of hand frames in batch.
@@ -64,7 +64,7 @@ def compute_frame_distance_batch(
     angle_diff = torch.abs(angle_A.unsqueeze(1) - angle_B.unsqueeze(0))
 
     wrist_dist = mag_diff + angle_diff
-    wrist_dist = 20 * (wrist_dist / 3.0 + (left_wrist_dist + right_wrist_dist) / 2.0)
+    wrist_dist = 20 * (wrist_dist / 3.0 + (left_wrist_dist + right_wrist_dist) / 1.0)
 
     frame_matrix = alpha_wrist * wrist_dist + (1 - alpha_wrist) * latent_dist
     return frame_matrix
@@ -91,26 +91,30 @@ def plot_wrist_metrics(
     """
     device = left_wrist_seq1.device
 
-    # Align seq2 based on DTW path if provided
-    if dtw_path is not None:
-        seq2_aligned_indices = [j for i, j in dtw_path]
-        aligned_left_seq2 = left_wrist_seq2[torch.tensor(seq2_aligned_indices, device=device)]
-        aligned_right_seq2 = right_wrist_seq2[torch.tensor(seq2_aligned_indices, device=device)]
-    else:
-        aligned_left_seq2 = left_wrist_seq2
-        aligned_right_seq2 = right_wrist_seq2
-
     # Compute wrist velocities
     vel_left_seq1 = left_wrist_seq1[1:] - left_wrist_seq1[:-1]
     vel_right_seq1 = right_wrist_seq1[1:] - right_wrist_seq1[:-1]
-    vel_left_seq2 = aligned_left_seq2[1:] - aligned_left_seq2[:-1]
-    vel_right_seq2 = aligned_right_seq2[1:] - aligned_right_seq2[:-1]
+    vel_left_seq2 = left_wrist_seq2[1:] - left_wrist_seq2[:-1]
+    vel_right_seq2 = right_wrist_seq2[1:] - right_wrist_seq2[:-1]
+
+    # Align seq2 based on DTW path if provided
+    if dtw_path is not None:
+        seq2_aligned_indices = torch.tensor([j for i, j in dtw_path], device=device)
+        aligned_left_seq2 = left_wrist_seq2[seq2_aligned_indices]
+        aligned_right_seq2 = right_wrist_seq2[seq2_aligned_indices]
+
+        vel_left_seq2 = vel_left_seq2[seq2_aligned_indices]
+        vel_right_seq2 = vel_right_seq2[seq2_aligned_indices]
+    else:
+        aligned_left_seq2 = left_wrist_seq2
+        aligned_right_seq2 = right_wrist_seq2
 
     # Compute magnitudes
     mag_left_seq1 = torch.norm(vel_left_seq1, dim=-1)
     mag_right_seq1 = torch.norm(vel_right_seq1, dim=-1)
     mag_left_seq2 = torch.norm(vel_left_seq2, dim=-1)
     mag_right_seq2 = torch.norm(vel_right_seq2, dim=-1)
+
 
     # Compute wrist distances
     wrist_distance_seq1 = torch.norm(left_wrist_seq1 - right_wrist_seq1, dim=-1)
@@ -173,12 +177,12 @@ def dtw_subsequence_full_alignment(
     vel_left_seq2 = left_wrist_seq2[1:] - left_wrist_seq2[:-1]
     vel_right_seq2 = right_wrist_seq2[1:] - right_wrist_seq2[:-1]
 
-    plot_wrist_metrics(
-        left_wrist_seq1=left_wrist_seq1,
-        left_wrist_seq2=left_wrist_seq2,
-        right_wrist_seq1=right_wrist_seq1,
-        right_wrist_seq2=right_wrist_seq2,
-    )
+    # plot_wrist_metrics(
+    #     left_wrist_seq1=left_wrist_seq1,
+    #     left_wrist_seq2=left_wrist_seq2,
+    #     right_wrist_seq1=right_wrist_seq1,
+    #     right_wrist_seq2=right_wrist_seq2,
+    # )
 
     # Adjust lengths (velocities are one shorter)
     T1_vel = T1 - 1
@@ -196,13 +200,13 @@ def dtw_subsequence_full_alignment(
     )  # shape: (T1, T2)
 
     # Visualize the Frame cost matrix
-    plt.figure(figsize=(8, 6))
-    plt.imshow(frame_matrix.cpu().numpy(), origin='lower', cmap='viridis', aspect='auto')
-    plt.colorbar(label='Accumulated Cost')
-    plt.xlabel('Sequence 2 Index')
-    plt.ylabel('Sequence 1 Index')
-    plt.title('DTW Cost Matrix')
-    plt.show()
+    # plt.figure(figsize=(8, 6))
+    # plt.imshow(frame_matrix.cpu().numpy(), origin='lower', cmap='viridis', aspect='auto')
+    # plt.colorbar(label='Accumulated Cost')
+    # plt.xlabel('Sequence 2 Index')
+    # plt.ylabel('Sequence 1 Index')
+    # plt.title('DTW Cost Matrix')
+    # plt.show()
 
     # DTW matrix
     T1_vel, T2_vel = frame_matrix.shape
@@ -211,7 +215,7 @@ def dtw_subsequence_full_alignment(
     D[0, 0] = 0.0
 
     backtrack = torch.zeros((T1_vel + 1, T2_vel + 1), dtype=torch.int, device=device)
-    penalty = 0.01
+    penalty = 0.5
 
     costs = torch.empty(3, device=device)
 
@@ -227,14 +231,24 @@ def dtw_subsequence_full_alignment(
         backtrack[i, 1:] = min_idx
 
 
-    # Visualize the DTW cost matrix
-    plt.figure(figsize=(8, 6))
-    plt.imshow(D.cpu().numpy(), origin='lower', cmap='viridis', aspect='auto')
-    plt.colorbar(label='Accumulated Cost')
-    plt.xlabel('Sequence 2 Index')
-    plt.ylabel('Sequence 1 Index')
-    plt.title('DTW Cost Matrix')
-    plt.show()
+    # # Assuming D is a PyTorch tensor
+    # D_np = D.cpu().numpy()
+
+    # plt.figure(figsize=(8, 6))
+    # plt.imshow(D_np, origin='lower', cmap='viridis', aspect='auto')
+    # plt.colorbar(label='Accumulated Cost')
+    # plt.xlabel('Sequence 2 Index')
+    # plt.ylabel('Sequence 1 Index')
+    # plt.title('DTW Cost Matrix')
+
+    # # Annotate each cell with its value
+    # rows, cols = D_np.shape
+    # for i in range(rows):
+    #     for j in range(cols):
+    #         plt.text(j, i, f'{D_np[i, j]:.2f}', ha='center', va='center', color='white', fontsize=6)
+
+    # plt.tight_layout()
+    # plt.show()
 
     # Subsequence alignment: find min in last row
     dtw_costs = D[T1_vel, 1:]
@@ -245,6 +259,7 @@ def dtw_subsequence_full_alignment(
     # reconstruct the alignment path
     i, j = T1_vel, end_idx
     path = []
+    penalty_acrued = 0
     while i > 0 and j > 0:
         path.append((i-1, j-1))
         step = backtrack[i, j].item()
@@ -253,31 +268,31 @@ def dtw_subsequence_full_alignment(
             j -= 1
         elif step == 1:    # up
             i -= 1
+            penalty_acrued += penalty
         elif step == 2:    # left
             j -= 1
+            penalty_acrued += penalty
     path.reverse()
     best_start = path[0]
 
     print(path)
+    print(f"Penalty accrued: {penalty_acrued}")
 
-    plot_wrist_metrics(
-        left_wrist_seq1=left_wrist_seq1,
-        left_wrist_seq2=left_wrist_seq2,
-        right_wrist_seq1=right_wrist_seq1,
-        right_wrist_seq2=right_wrist_seq2,
-        dtw_path=path
-    )
+    # plot_wrist_metrics(
+    #     left_wrist_seq1=left_wrist_seq1,
+    #     left_wrist_seq2=left_wrist_seq2,
+    #     right_wrist_seq1=right_wrist_seq1,
+    #     right_wrist_seq2=right_wrist_seq2,
+    #     dtw_path=path
+    # )
 
     
 
     # print(path)
     seq2_span = path[-1][1] - path[0][1] + 1  # how many frames in seq2 the match spanned
 
-    if seq2_span > 6:
-        shorter_than_30 = 30
-        if seq2_span < shorter_than_30:
-            shorter_than_30 = seq2_span
-        dtw_dist_norm /= (seq2_span)
+    if seq2_span > 0:
+        dtw_dist_norm /= seq2_span
 
     return dtw_dist_norm, best_start
 
