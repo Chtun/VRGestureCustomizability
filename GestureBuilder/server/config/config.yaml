@@ -1,27 +1,37 @@
 paths:
-  data_folder: "C:\\Users\\chtun\\AppData\\LocalLow\\DefaultCompany\\Unity_VR_Template"
+  data_folder: "C:\\Users\\xxt230003\\AppData\\LocalLow\\DefaultCompany\\Unity_VR_Template"
   output_folder: "../output"
   input_VQVAE_model: "vqvae_hand_model.pt"
-  gesture_template_json: "./database/stored_gesture_templates.json"
+  gesture_template_json: "./database/stored_gesture_templates-Test1.json"
   
 
 gesture_template_paths:
-  - name: "Right Jab"
-    path: "hand_data-right_jab-Evan-1.csv"
-  # - name: "Right Jab"
-  #   path: "hand_data-right_jab-1.csv"
-  # - name: "Right Jab"
-  #   path: "hand_data-right_jab-2.csv"
-  # - name: "Right Jab"
-  #   path: "hand_data-right_jab-3.csv"
-  - name: "Left Jab"
-    path: "hand_data-left_jab-1.csv"
-  - name: "Table Bang"
-    path: "hand_data-table_bang-1.csv"
+  # - name: "Cast Lightning"
+  #   path: "live_recordings-Chitsein-Cast Lightning 1.csv"
+  # - name: "Cast Lightning"
+  #   path: "live_recordings-Chitsein-Cast Lightning 2.csv"
+  # - name: "Cast Ice"
+  #   path: "live_recordings-Chitsein-Cast Ice 1.csv"
+  # - name: "Cast Ice"
+  #   path: "live_recordings-Chitsein-Cast Ice 2.csv"
+  # - name: "Show Teleport"
+  #   path: "live_recordings-Chitsein-Show Teleport 1.csv"
+  # - name: "Show Teleport"
+  #   path: "live_recordings-Chitsein-Show Teleport 2.csv"
+  - name: "Cast Teleport"
+    path: "live_recordings-Chitsein-Cast Teleport 1.csv"
+  - name: "Cast Teleport"
+    path: "live_recordings-Chitsein-Cast Teleport 2.csv"
+  # - name: "Cast Fireball"
+  #   path: "live_recordings-Evan-Cast Fireball 1.csv"
+  # - name: "Cast Fireball"
+  #   path: "live_recordings-Evan-Cast Fireball 2.csv"
+  # - name: "Cast Fireball"
+  #   path: "live_recordings-Chitsein-Cast Fireball 2.csv"
 
 gesture_settings:
   BUFFER_MAX_LEN: 40
-  MATCH_THRESHOLD: 0.4
+  MATCH_THRESHOLD: 0.5
 
 model_params:
   latent_dim: 8

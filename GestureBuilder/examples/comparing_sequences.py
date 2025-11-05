@@ -1,20 +1,28 @@
 from pathlib import Path
 import torch
 import pandas as pd
+import yaml
 from GestureBuilder.utilities.naming_conventions import get_hand_joint_list
 from GestureBuilder.utilities.sequence_comparison import sequence_distance, VQVAE
 from GestureBuilder.model.hand_dataset import load_hand_tensors_from_csv  # same function used on server
 
 # === Paths ===
-data_folder = Path("C:\\Users\\chtun\\AppData\\LocalLow\\DefaultCompany\\Unity_VR_Template")
+data_folder = Path("C:\\Users\\xxt230003\\AppData\\LocalLow\\DefaultCompany\\Unity_VR_Template")
 
-csv_paths = [
-    data_folder / "hand_data-right_jab-1.csv",
-    data_folder / "hand_data-right_jab-2.csv",
-    data_folder / "hand_data-right_jab-3.csv",
-    data_folder / "hand_data-right_jab-Evan-1.csv",
-    data_folder / "hand_data-table_bang-1.csv",
-]
+# Try to load gesture template names and filenames from the server config
+try:
+    config_file = Path(__file__).resolve().parents[1] / "server" / "config" / "config.yaml"
+    cfg = yaml.safe_load(config_file.read_text())
+    templates = cfg.get("gesture_template_paths", []) if isinstance(cfg, dict) else []
+except Exception:
+    templates = []
+
+if templates:
+    # Use the name from config (human-readable) and build full paths from data_folder + path
+    csv_names = [t.get("name", Path(t.get("path", "")).stem) for t in templates]
+    csv_paths = [data_folder / t.get("path") for t in templates]
+else:
+    raise ValueError("Ur chopped")
 
 output_folder = Path("../output")
 input_VQVAE_model = output_folder / "vqvae_hand_model.pt"
@@ -43,8 +51,8 @@ gesture_data = [load_hand_tensors_from_csv(p, joints_list) for p in csv_paths]
 num_gestures = len(gesture_data)
 for i in range(num_gestures):
     for j in range(i + 1, num_gestures):
-        left_seq1, right_seq1, lw1, rw1, _, _ = gesture_data[i]
-        left_seq2, right_seq2, lw2, rw2, _, _ = gesture_data[j]
+        left_seq1, right_seq1, _, _, lw1, rw1, _, _ = gesture_data[i]
+        left_seq2, right_seq2, _, _, lw2, rw2, _, _ = gesture_data[j]
 
         # print("First sequence shapes:")
         # print(left_seq1.shape)
@@ -88,5 +96,5 @@ for i in range(num_gestures):
 
         end_time = time.time()
 
-        print(f"DTW Distance between gesture {i+1} and {j+1}: {dist:.4f}")
+        print(f"DTW Distance between gesture {csv_names[i]} and {csv_names[j]}: {dist:.4f}")
         print(f"Time to process: {end_time - start_time}")

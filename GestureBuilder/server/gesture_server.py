@@ -40,10 +40,13 @@ output_folder = Path(cfg['paths']['output_folder'])
 input_VQVAE_model = output_folder / cfg['paths']['input_VQVAE_model']
 
 # === Gesture template paths ===
-gesture_template_paths = [
-    (item['name'], data_folder / item['path'])
-    for item in cfg['gesture_template_paths']
-]
+if not cfg['gesture_template_paths'] is None:
+    gesture_template_paths = [
+        (item['name'], data_folder / item['path'])
+        for item in cfg['gesture_template_paths']
+    ]
+else:
+    gesture_template_paths = []
 
 # === Gesture settings ===
 BUFFER_MAX_LEN = cfg['gesture_settings']['BUFFER_MAX_LEN']
@@ -164,7 +167,7 @@ async def websocket_endpoint(websocket: WebSocket):
             buffer_right_wrist.append(right_wrist_frame)
 
             # Start comparing when enough frames are buffered
-            min_buffer_length = 5
+            min_buffer_length = 20
             if len(buffer_left_hands) >= min_buffer_length:
                 seq_left_hands = torch.stack(list(buffer_left_hands), dim=0)
                 seq_right_hands = torch.stack(list(buffer_right_hands), dim=0)
@@ -395,10 +398,13 @@ async def add_gesture(gesture: GestureInput):
                         template["right_hand_vectors"],
                         template["left_wrist_positions"],
                         template["right_wrist_positions"]
-                    ) < 2 * MATCH_THRESHOLD:
+                    ) < 1.4 * MATCH_THRESHOLD:
+                        message = f"Gesture '{gesture.label}' was too far away from another template in its group."
+                        print(message)
+
                         return {
                             "status_code": add_gesture_statuses["Too Similar To Other"],
-                            "message": f"Gesture '{gesture.label}' is too similar to another gesture '{gesture_key}' in the system.",
+                            "message": message,
                         }
             # Check that the input gesture is not close to gestures in its group.
             else:
@@ -413,10 +419,12 @@ async def add_gesture(gesture: GestureInput):
                         template["right_hand_vectors"],
                         template["left_wrist_positions"],
                         template["right_wrist_positions"]
-                    ) > 3 * MATCH_THRESHOLD:
+                    ) > 2.5 * MATCH_THRESHOLD:
+                        message = f"Gesture '{gesture.label}' was too far away from another template in its group."
+                        print(message)
                         return {
                             "status_code": add_gesture_statuses["Too Different From Group"],
-                            "message": f"Gesture '{gesture.label}' was too far away from another template in its group.",
+                            "message": message,
                         }
 
         gesture_templates[gesture.label].append(gesture_dict)

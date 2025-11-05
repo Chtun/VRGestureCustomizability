@@ -68,6 +68,9 @@ public class TeleportController : MonoBehaviour
 
     private void HandleTeleportAiming()
     {
+        if (!isAiming)
+            return;
+
         // Ray from the camera forward direction
         Ray ray = new Ray(cameraTransform.position, cameraTransform.forward);
 
