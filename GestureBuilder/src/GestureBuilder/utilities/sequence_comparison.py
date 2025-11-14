@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional as F
-
 import matplotlib.pyplot as plt
+import numpy as np
 
 from ..model.VQ_VAE import VQVAE
 
@@ -13,7 +13,7 @@ def compute_frame_distance_batch(
     left_wrist_vel_A, right_wrist_vel_A,
     left_wrist_vel_B, right_wrist_vel_B,
     alpha_wrist: float = 0.5,
-    LATENT_MAX: float = 2.0
+    LATENT_MAX: float = 1.0
 ):
     """
     Compute pairwise frame-wise distances between two sequences of hand frames in batch.
@@ -41,7 +41,7 @@ def compute_frame_distance_batch(
     latent_right_B_exp = latent_right_B.unsqueeze(0)
     latent_dist_left = torch.norm(latent_left_A_exp - latent_left_B_exp, dim=-1) / LATENT_MAX
     latent_dist_right = torch.norm(latent_right_A_exp - latent_right_B_exp, dim=-1) / LATENT_MAX
-    latent_dist = (latent_dist_left + latent_dist_right) / 2.0
+    latent_dist = (latent_dist_left + latent_dist_right)
 
     # Wrist velocity distance: |norm(A) - norm(B)|
     left_vel_A_exp = left_wrist_vel_A.unsqueeze(1)
@@ -64,14 +64,11 @@ def compute_frame_distance_batch(
     angle_diff = torch.abs(angle_A.unsqueeze(1) - angle_B.unsqueeze(0))
 
     wrist_dist = mag_diff + angle_diff
-    wrist_dist = 20 * (wrist_dist / 3.0 + (left_wrist_dist + right_wrist_dist) / 1.0)
+    wrist_dist = 20 * (1.0 * wrist_dist + 2.0 * (left_wrist_dist + right_wrist_dist))
 
     frame_matrix = alpha_wrist * wrist_dist + (1 - alpha_wrist) * latent_dist
     return frame_matrix
 
-import torch
-import torch.nn.functional as F
-import matplotlib.pyplot as plt
 
 def plot_wrist_metrics(
     left_wrist_seq1: torch.Tensor,
@@ -157,7 +154,9 @@ def dtw_subsequence_full_alignment(
     left_wrist_seq2: torch.Tensor,
     right_wrist_seq2: torch.Tensor,
     alpha_wrist: float = 0.5,
-    device: str = "cpu"
+    device: str = "cpu",
+    visualize_metrics: bool = False,
+    debug_statements: bool = False,
 ):
     """
     DTW distance for a subsequence match where seq1 must fully fit inside seq2.
@@ -166,7 +165,9 @@ def dtw_subsequence_full_alignment(
 
     T1 = latent_left_seq1.shape[0]
     T2 = latent_left_seq2.shape[0]
-    # print(f"\n[DTW] Sequence lengths: seq1={T1}, seq2={T2}")
+
+    if debug_statements:
+        print(f"\n[DTW] Sequence lengths: seq1={T1}, seq2={T2}")
 
     if T1 > T2:
         raise ValueError("seq1 must be shorter than or equal to seq2 for full alignment.")
@@ -177,12 +178,13 @@ def dtw_subsequence_full_alignment(
     vel_left_seq2 = left_wrist_seq2[1:] - left_wrist_seq2[:-1]
     vel_right_seq2 = right_wrist_seq2[1:] - right_wrist_seq2[:-1]
 
-    # plot_wrist_metrics(
-    #     left_wrist_seq1=left_wrist_seq1,
-    #     left_wrist_seq2=left_wrist_seq2,
-    #     right_wrist_seq1=right_wrist_seq1,
-    #     right_wrist_seq2=right_wrist_seq2,
-    # )
+    if visualize_metrics:
+        plot_wrist_metrics(
+            left_wrist_seq1=left_wrist_seq1,
+            left_wrist_seq2=left_wrist_seq2,
+            right_wrist_seq1=right_wrist_seq1,
+            right_wrist_seq2=right_wrist_seq2,
+        )
 
     # Adjust lengths (velocities are one shorter)
     T1_vel = T1 - 1
@@ -199,14 +201,15 @@ def dtw_subsequence_full_alignment(
         alpha_wrist=alpha_wrist
     )  # shape: (T1, T2)
 
-    # Visualize the Frame cost matrix
-    # plt.figure(figsize=(8, 6))
-    # plt.imshow(frame_matrix.cpu().numpy(), origin='lower', cmap='viridis', aspect='auto')
-    # plt.colorbar(label='Accumulated Cost')
-    # plt.xlabel('Sequence 2 Index')
-    # plt.ylabel('Sequence 1 Index')
-    # plt.title('DTW Cost Matrix')
-    # plt.show()
+    if visualize_metrics:
+        # Visualize the Frame cost matrix
+        plt.figure(figsize=(8, 6))
+        plt.imshow(frame_matrix.cpu().numpy(), origin='lower', cmap='viridis', aspect='auto')
+        plt.colorbar(label='Accumulated Cost')
+        plt.xlabel('Sequence 2 Index')
+        plt.ylabel('Sequence 1 Index')
+        plt.title('DTW Cost Matrix')
+        plt.show()
 
     # DTW matrix
     T1_vel, T2_vel = frame_matrix.shape
@@ -215,7 +218,7 @@ def dtw_subsequence_full_alignment(
     D[0, 0] = 0.0
 
     backtrack = torch.zeros((T1_vel + 1, T2_vel + 1), dtype=torch.int, device=device)
-    penalty = 0.5
+    penalty = 2.5
 
     costs = torch.empty(3, device=device)
 
@@ -230,25 +233,25 @@ def dtw_subsequence_full_alignment(
         D[i, 1:] = frame_matrix[i - 1, :] + min_costs
         backtrack[i, 1:] = min_idx
 
+    if visualize_metrics:
+        # Assuming D is a PyTorch tensor
+        D_np = D.cpu().numpy()
 
-    # # Assuming D is a PyTorch tensor
-    # D_np = D.cpu().numpy()
+        plt.figure(figsize=(8, 6))
+        plt.imshow(D_np, origin='lower', cmap='viridis', aspect='auto')
+        plt.colorbar(label='Accumulated Cost')
+        plt.xlabel('Sequence 2 Index')
+        plt.ylabel('Sequence 1 Index')
+        plt.title('DTW Cost Matrix')
 
-    # plt.figure(figsize=(8, 6))
-    # plt.imshow(D_np, origin='lower', cmap='viridis', aspect='auto')
-    # plt.colorbar(label='Accumulated Cost')
-    # plt.xlabel('Sequence 2 Index')
-    # plt.ylabel('Sequence 1 Index')
-    # plt.title('DTW Cost Matrix')
+        # Annotate each cell with its value
+        rows, cols = D_np.shape
+        for i in range(rows):
+            for j in range(cols):
+                plt.text(j, i, f'{D_np[i, j]:.2f}', ha='center', va='center', color='white', fontsize=6)
 
-    # # Annotate each cell with its value
-    # rows, cols = D_np.shape
-    # for i in range(rows):
-    #     for j in range(cols):
-    #         plt.text(j, i, f'{D_np[i, j]:.2f}', ha='center', va='center', color='white', fontsize=6)
-
-    # plt.tight_layout()
-    # plt.show()
+        plt.tight_layout()
+        plt.show()
 
     # Subsequence alignment: find min in last row
     dtw_costs = D[T1_vel, 1:]
@@ -275,24 +278,32 @@ def dtw_subsequence_full_alignment(
     path.reverse()
     best_start = path[0]
 
-    print(path)
-    print(f"Penalty accrued: {penalty_acrued}")
+    if debug_statements:
+        print()
+        print(path)
+        print(f"Penalty accrued: {penalty_acrued}")
 
-    # plot_wrist_metrics(
-    #     left_wrist_seq1=left_wrist_seq1,
-    #     left_wrist_seq2=left_wrist_seq2,
-    #     right_wrist_seq1=right_wrist_seq1,
-    #     right_wrist_seq2=right_wrist_seq2,
-    #     dtw_path=path
-    # )
-
+    if visualize_metrics:
+        plot_wrist_metrics(
+            left_wrist_seq1=left_wrist_seq1,
+            left_wrist_seq2=left_wrist_seq2,
+            right_wrist_seq1=right_wrist_seq1,
+            right_wrist_seq2=right_wrist_seq2,
+            dtw_path=path
+        )
     
-
-    # print(path)
     seq2_span = path[-1][1] - path[0][1] + 1  # how many frames in seq2 the match spanned
 
+    seq1_length = left_wrist_seq1.shape[0]
+
     if seq2_span > 0:
-        dtw_dist_norm /= seq2_span
+        dtw_dist_norm /= seq1_length
+
+    def sigmoid(x) -> float:
+        return float(1 / (1 + np.exp(-x)))
+
+    seq_length_penalty = 1.0 * sigmoid((5 - seq1_length))
+    dtw_dist_norm += seq_length_penalty
 
     return dtw_dist_norm, best_start
 
@@ -310,6 +321,8 @@ def sequence_distance(
     left_wrist_seq2: torch.Tensor,
     right_wrist_seq2: torch.Tensor,
     alpha_wrist: float = 0.3,
+    debug_statements: bool = False,
+    visualize_metrics: bool = False,
 ):
     """
     Compute a DTW-based distance between two gesture sequences using both hands and wrist positions.
@@ -367,11 +380,12 @@ def sequence_distance(
                 f"{seq_name} has invalid shape {tuple(seq.shape)}, expected (num_frames, 3)"
             )
 
-    # print(f"\n=== Sequence Distance Debug ===")
-    # print(f"Input sizes: {encoder_input_size}-dim encoder, device={device}")
-    # print(f"Left seq1 shape: {tuple(left_hand_seq1.shape)}, Right seq1: {tuple(right_hand_seq1.shape)}")
-    # print(f"Left seq2 shape: {tuple(left_hand_seq2.shape)}, Right seq2: {tuple(right_hand_seq2.shape)}")
-    # print(f"Wrist seq shapes: left1 {tuple(left_wrist_seq1.shape)}, right1 {tuple(right_wrist_seq1.shape)}, left2 {tuple(left_wrist_seq2.shape)}, right2 {tuple(right_wrist_seq2.shape)}")
+    if debug_statements:
+        print(f"\n=== Sequence Distance Debug ===")
+        print(f"Input sizes: {encoder_input_size}-dim encoder, device={device}")
+        print(f"Left seq1 shape: {tuple(left_hand_seq1.shape)}, Right seq1: {tuple(right_hand_seq1.shape)}")
+        print(f"Left seq2 shape: {tuple(left_hand_seq2.shape)}, Right seq2: {tuple(right_hand_seq2.shape)}")
+        print(f"Wrist seq shapes: left1 {tuple(left_wrist_seq1.shape)}, right1 {tuple(right_wrist_seq1.shape)}, left2 {tuple(left_wrist_seq2.shape)}, right2 {tuple(right_wrist_seq2.shape)}")
 
     # Move all inputs to the same device as the model
     left_hand_seq1 = left_hand_seq1.to(device)
@@ -390,20 +404,22 @@ def sequence_distance(
         latent_left_seq2 = vqvae_model.encode(left_hand_seq2)
         latent_right_seq2 = vqvae_model.encode(right_hand_seq2)
 
-    # print(f"[Encode] Latent mean/std:")
-    # for name, latent in [
-    #     ("latent_left_seq1", latent_left_seq1),
-    #     ("latent_right_seq1", latent_right_seq1),
-    #     ("latent_left_seq2", latent_left_seq2),
-    #     ("latent_right_seq2", latent_right_seq2),
-    # ]:
-    #     print(f"  {name}: mean={latent.mean().item():.6f}, std={latent.std().item():.6f}")
+    if debug_statements:
+        print(f"[Encode] Latent mean/std:")
+        for name, latent in [
+            ("latent_left_seq1", latent_left_seq1),
+            ("latent_right_seq1", latent_right_seq1),
+            ("latent_left_seq2", latent_left_seq2),
+            ("latent_right_seq2", latent_right_seq2),
+        ]:
+            print(f"  {name}: mean={latent.mean().item():.6f}, std={latent.std().item():.6f}")
 
     # --- Check sequence lengths and reorder if necessary ---
     len1 = latent_left_seq1.shape[0]
     len2 = latent_left_seq2.shape[0]
     if len1 > len2:
-        # print(f"[Sequence Swap] seq1 is longer than seq2 ({len1} > {len2}), swapping sequences for DTW.")
+        if debug_statements:
+            print(f"[Sequence Swap] seq1 is longer than seq2 ({len1} > {len2}), swapping sequences for DTW.")
         latent_left_seq1, latent_left_seq2 = latent_left_seq2, latent_left_seq1
         latent_right_seq1, latent_right_seq2 = latent_right_seq2, latent_right_seq1
         left_wrist_seq1, left_wrist_seq2 = left_wrist_seq2, left_wrist_seq1
@@ -418,8 +434,12 @@ def sequence_distance(
         left_wrist_seq1, right_wrist_seq1,
         left_wrist_seq2, right_wrist_seq2,
         alpha_wrist=alpha_wrist,
-        device=str(device)
+        device=str(device),
+        debug_statements=debug_statements,
+        visualize_metrics=visualize_metrics,
     )
 
-    # print(f"[Final] DTW distance = {dtw_distance:.6f}, best start index in seq2 = {index_start}")
+    if debug_statements:
+        print(f"[Final] DTW distance = {dtw_distance:.6f}, best start index in seq2 = {index_start}")
+    
     return dtw_distance

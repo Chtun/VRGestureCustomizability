@@ -231,6 +231,10 @@ public class GestureSystemManager : MonoBehaviour
 			yield break;
 		}
 
+		// Save the gesture input under its associated action type.
+		string label = gestureInput.label;
+		gestureInput.label = InputManager.ActionTypeName(associatedActionType);
+
 		bool success = false;
 
 		// Start the HTTP request and wait for it
@@ -239,9 +243,11 @@ public class GestureSystemManager : MonoBehaviour
 			success = requestSuccess;
 		}));
 
+		GestureKeyToActionType[label] = associatedActionType;
+
 		if (success)
 		{
-			GestureKeyToActionType[gestureInput.label] = associatedActionType;
+			GestureKeyToActionType[label] = associatedActionType;
 		}
 
 		// Notify caller when done

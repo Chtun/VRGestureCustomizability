@@ -402,7 +402,6 @@ public class GestureRecordingManager : MonoBehaviour
 
 		if (successfulRecording)
 		{
-			recordedGesture.label = InputManager.ActionTypeName(selectedActionType);
 			CurrentRecordedGesture = recordedGesture;
 			Debug.Log($"[{scriptName}] The recording was stopped successfully.");
 

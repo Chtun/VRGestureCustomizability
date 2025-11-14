@@ -7,15 +7,16 @@ from GestureBuilder.utilities.sequence_comparison import sequence_distance, VQVA
 from GestureBuilder.model.hand_dataset import load_hand_tensors_from_csv  # same function used on server
 
 # === Paths ===
-data_folder = Path("C:\\Users\\xxt230003\\AppData\\LocalLow\\DefaultCompany\\Unity_VR_Template")
 
 # Try to load gesture template names and filenames from the server config
 try:
     config_file = Path(__file__).resolve().parents[1] / "server" / "config" / "config.yaml"
     cfg = yaml.safe_load(config_file.read_text())
     templates = cfg.get("gesture_template_paths", []) if isinstance(cfg, dict) else []
+    data_folder = Path(cfg.get("paths", Path()).get("data_folder", Path())) if isinstance(cfg, dict) else Path()
 except Exception:
     templates = []
+    raise ValueError("Ur chopped")
 
 if templates:
     # Use the name from config (human-readable) and build full paths from data_folder + path
@@ -91,7 +92,9 @@ for i in range(num_gestures):
             left_seq1, right_seq1,
             lw1, rw1,
             left_seq2, right_seq2,
-            lw2, rw2
+            lw2, rw2,
+            debug_statements=True,
+            visualize_metrics=False
         )
 
         end_time = time.time()

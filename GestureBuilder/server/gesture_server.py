@@ -39,15 +39,6 @@ data_folder = Path(cfg['paths']['data_folder'])
 output_folder = Path(cfg['paths']['output_folder'])
 input_VQVAE_model = output_folder / cfg['paths']['input_VQVAE_model']
 
-# === Gesture template paths ===
-if not cfg['gesture_template_paths'] is None:
-    gesture_template_paths = [
-        (item['name'], data_folder / item['path'])
-        for item in cfg['gesture_template_paths']
-    ]
-else:
-    gesture_template_paths = []
-
 # === Gesture settings ===
 BUFFER_MAX_LEN = cfg['gesture_settings']['BUFFER_MAX_LEN']
 MATCH_THRESHOLD = cfg['gesture_settings']['MATCH_THRESHOLD']
@@ -76,29 +67,40 @@ default_gesture_templates: Dict[str, List[Dict[str, torch.Tensor]]] = {}
 num_templates = 0
 MAX_NUM_TEMPLATES = 15
 
-# === Load all gesture sequences ===
-for pair in gesture_template_paths:
-    gesture_key =  pair[0]
-    template_path = pair[1]
+# === Load all default gestures ===
+# === Gesture template paths ===
+if not cfg['gesture_template_paths'] is None:
+    gesture_template_paths = [
+        (item['name'], data_folder / item['path'])
+        for item in cfg['gesture_template_paths']
+    ]
 
-    if gesture_key not in default_gesture_templates:
-        default_gesture_templates[gesture_key] = []
+    for pair in gesture_template_paths:
+        gesture_key =  pair[0]
+        template_path = pair[1]
 
-    (left_hand_vectors, right_hand_vectors, left_joint_rotations, right_joint_rotations,
-     left_wrist_positions, right_wrist_positions,
-     left_wrist_rotations, right_wrist_rotations) = load_hand_tensors_from_csv(template_path, JOINTS_LIST)
-    gesture_dict = {
-        "left_hand_vectors": left_hand_vectors, # shape: (num_frames, 72)
-        "right_hand_vectors": right_hand_vectors, # shape: (num_frames, 72)
-        "left_joint_rotations": left_joint_rotations, # shape: (num_frames, 24, 4)
-        "right_joint_rotations": right_joint_rotations, # shape: (num_frames, 24, 4)
-        "left_wrist_positions": left_wrist_positions, # shape: (num_frames, 3)
-        "right_wrist_positions": right_wrist_positions, # shape: (num_frames, 3)
-        "left_wrist_rotations": left_wrist_rotations, # shape: (num_frames, 4)
-        "right_wrist_rotations": right_wrist_rotations # shape: (num_frames, 4)
-    }
+        if gesture_key not in default_gesture_templates:
+            default_gesture_templates[gesture_key] = []
 
-    default_gesture_templates[gesture_key].append(gesture_dict)
+        (left_hand_vectors, right_hand_vectors, left_joint_rotations, right_joint_rotations,
+        left_wrist_positions, right_wrist_positions,
+        left_wrist_rotations, right_wrist_rotations) = load_hand_tensors_from_csv(template_path, JOINTS_LIST)
+        gesture_dict = {
+            "left_hand_vectors": left_hand_vectors, # shape: (num_frames, 72)
+            "right_hand_vectors": right_hand_vectors, # shape: (num_frames, 72)
+            "left_joint_rotations": left_joint_rotations, # shape: (num_frames, 24, 4)
+            "right_joint_rotations": right_joint_rotations, # shape: (num_frames, 24, 4)
+            "left_wrist_positions": left_wrist_positions, # shape: (num_frames, 3)
+            "right_wrist_positions": right_wrist_positions, # shape: (num_frames, 3)
+            "left_wrist_rotations": left_wrist_rotations, # shape: (num_frames, 4)
+            "right_wrist_rotations": right_wrist_rotations # shape: (num_frames, 4)
+        }
+
+        default_gesture_templates[gesture_key].append(gesture_dict)
+
+elif not cfg['paths']['default_gesture_template_json'] is None:
+    default_gesture_templates = load_gestures_from_json(cfg['paths']['default_gesture_template_json'])
+
 
 print(f"Default gesture keys: {default_gesture_templates.keys()}")
 
@@ -203,14 +205,14 @@ async def websocket_endpoint(websocket: WebSocket):
                                         executor,
                                         sequence_distance,
                                         vqvae_model,
-                                        seq_left_hands_flat,
-                                        seq_right_hands_flat,
-                                        seq_left_wrist,
-                                        seq_right_wrist,
                                         template["left_hand_vectors"],
                                         template["right_hand_vectors"],
                                         template["left_wrist_positions"],
                                         template["right_wrist_positions"],
+                                        seq_left_hands_flat,
+                                        seq_right_hands_flat,
+                                        seq_left_wrist,
+                                        seq_right_wrist,
                                     )
                                     futures.append(future)
                                     template_keys.append(gesture_key)
@@ -229,14 +231,14 @@ async def websocket_endpoint(websocket: WebSocket):
                                         executor,
                                         sequence_distance,
                                         vqvae_model,
-                                        seq_left_hands_flat,
-                                        seq_right_hands_flat,
-                                        seq_left_wrist,
-                                        seq_right_wrist,
                                         template["left_hand_vectors"],
                                         template["right_hand_vectors"],
                                         template["left_wrist_positions"],
                                         template["right_wrist_positions"],
+                                        seq_left_hands_flat,
+                                        seq_right_hands_flat,
+                                        seq_left_wrist,
+                                        seq_right_wrist,
                                     )
                                     futures.append(future)
                                     template_keys.append(gesture_key)
