@@ -390,7 +390,7 @@ async def add_gesture(gesture: GestureInput):
             # Check that the input gesture is not too close to gestures in other groups.
             if gesture_key != gesture.label:
                 for template in gesture_templates[gesture_key]:
-                    if sequence_distance(
+                    other_action_distance = sequence_distance(
                         vqvae_model,
                         gesture_dict["left_hand_vectors"],
                         gesture_dict["right_hand_vectors"],
@@ -400,8 +400,9 @@ async def add_gesture(gesture: GestureInput):
                         template["right_hand_vectors"],
                         template["left_wrist_positions"],
                         template["right_wrist_positions"]
-                    ) < 1.4 * MATCH_THRESHOLD:
-                        message = f"Gesture '{gesture.label}' was too far away from another template in its group."
+                    )
+                    if other_action_distance < 1.4 * MATCH_THRESHOLD:
+                        message = f"Error: Gesture '{gesture.label}' is not far away from another template for another action '{gesture_key}' (Distance: {other_action_distance})."
                         print(message)
 
                         return {
@@ -411,7 +412,7 @@ async def add_gesture(gesture: GestureInput):
             # Check that the input gesture is not close to gestures in its group.
             else:
                 for template in gesture_templates[gesture_key]:
-                    if sequence_distance(
+                    same_action_distance = sequence_distance(
                         vqvae_model,
                         gesture_dict["left_hand_vectors"],
                         gesture_dict["right_hand_vectors"],
@@ -421,19 +422,21 @@ async def add_gesture(gesture: GestureInput):
                         template["right_hand_vectors"],
                         template["left_wrist_positions"],
                         template["right_wrist_positions"]
-                    ) > 2.5 * MATCH_THRESHOLD:
-                        message = f"Gesture '{gesture.label}' was too far away from another template in its group."
+                    )
+                    if same_action_distance > 2.5 * MATCH_THRESHOLD:
+                        message = f"Warning: Gesture '{gesture.label}' was too far away from another template in its group (Distance: {same_action_distance})."
                         print(message)
-                        return {
-                            "status_code": add_gesture_statuses["Too Different From Group"],
-                            "message": message,
-                        }
+
+                        # return {
+                        #     "status_code": add_gesture_statuses["Too Different From Group"],
+                        #     "message": message,
+                        # }
 
         gesture_templates[gesture.label].append(gesture_dict)
 
-        print(gesture_templates.keys())
-
         save_gestures_to_json(gesture_templates, cfg['paths']['gesture_template_json'])
+
+        print(f"The gesture is added to the templates for action '{gesture.label}'")
 
         return {
             "status_code": add_gesture_statuses["OK"],
