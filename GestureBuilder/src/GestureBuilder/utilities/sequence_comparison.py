@@ -13,7 +13,8 @@ def compute_frame_distance_batch(
     left_wrist_vel_A, right_wrist_vel_A,
     left_wrist_vel_B, right_wrist_vel_B,
     alpha_wrist: float = 0.5,
-    LATENT_MAX: float = 1.0
+    LATENT_MAX: float = 1.0,
+    power: float = 1.0
 ):
     """
     Compute pairwise frame-wise distances between two sequences of hand frames in batch.
@@ -54,14 +55,15 @@ def compute_frame_distance_batch(
     # Wrist position distances: |norm(left-right)_A - norm(left-right)_B|
     wrist_dist_A = torch.norm(left_wrist_pos_A - right_wrist_pos_A, dim=-1)  # (T1-1)
     wrist_dist_B = torch.norm(left_wrist_pos_B - right_wrist_pos_B, dim=-1)  # (T2-1)
-    mag_diff = torch.abs(wrist_dist_A.unsqueeze(1) - wrist_dist_B.unsqueeze(0))
+    mag_diff = torch.abs(wrist_dist_A.unsqueeze(1) - wrist_dist_B.unsqueeze(0)) ** power
 
     # Wrist angles: |angle_A - angle_B|
     cos_angle_A = F.cosine_similarity(left_wrist_pos_A, right_wrist_pos_A, dim=-1)  # (T1-1)
     cos_angle_B = F.cosine_similarity(left_wrist_pos_B, right_wrist_pos_B, dim=-1)  # (T2-1)
     angle_A = torch.acos(torch.clamp(cos_angle_A, -1.0, 1.0))
     angle_B = torch.acos(torch.clamp(cos_angle_B, -1.0, 1.0))
-    angle_diff = torch.abs(angle_A.unsqueeze(1) - angle_B.unsqueeze(0))
+    angle_diff = torch.abs(angle_A.unsqueeze(1) - angle_B.unsqueeze(0)) ** power
+
 
     wrist_dist = mag_diff + angle_diff
     wrist_dist = 20 * (1.0 * wrist_dist + 2.0 * (left_wrist_dist + right_wrist_dist))
@@ -380,12 +382,12 @@ def sequence_distance(
                 f"{seq_name} has invalid shape {tuple(seq.shape)}, expected (num_frames, 3)"
             )
 
-    if debug_statements:
-        print(f"\n=== Sequence Distance Debug ===")
-        print(f"Input sizes: {encoder_input_size}-dim encoder, device={device}")
-        print(f"Left seq1 shape: {tuple(left_hand_seq1.shape)}, Right seq1: {tuple(right_hand_seq1.shape)}")
-        print(f"Left seq2 shape: {tuple(left_hand_seq2.shape)}, Right seq2: {tuple(right_hand_seq2.shape)}")
-        print(f"Wrist seq shapes: left1 {tuple(left_wrist_seq1.shape)}, right1 {tuple(right_wrist_seq1.shape)}, left2 {tuple(left_wrist_seq2.shape)}, right2 {tuple(right_wrist_seq2.shape)}")
+    # if debug_statements:
+    #     print(f"\n=== Sequence Distance Debug ===")
+    #     print(f"Input sizes: {encoder_input_size}-dim encoder, device={device}")
+    #     print(f"Left seq1 shape: {tuple(left_hand_seq1.shape)}, Right seq1: {tuple(right_hand_seq1.shape)}")
+    #     print(f"Left seq2 shape: {tuple(left_hand_seq2.shape)}, Right seq2: {tuple(right_hand_seq2.shape)}")
+    #     print(f"Wrist seq shapes: left1 {tuple(left_wrist_seq1.shape)}, right1 {tuple(right_wrist_seq1.shape)}, left2 {tuple(left_wrist_seq2.shape)}, right2 {tuple(right_wrist_seq2.shape)}")
 
     # Move all inputs to the same device as the model
     left_hand_seq1 = left_hand_seq1.to(device)
@@ -404,15 +406,15 @@ def sequence_distance(
         latent_left_seq2 = vqvae_model.encode(left_hand_seq2)
         latent_right_seq2 = vqvae_model.encode(right_hand_seq2)
 
-    if debug_statements:
-        print(f"[Encode] Latent mean/std:")
-        for name, latent in [
-            ("latent_left_seq1", latent_left_seq1),
-            ("latent_right_seq1", latent_right_seq1),
-            ("latent_left_seq2", latent_left_seq2),
-            ("latent_right_seq2", latent_right_seq2),
-        ]:
-            print(f"  {name}: mean={latent.mean().item():.6f}, std={latent.std().item():.6f}")
+    # if debug_statements:
+    #     print(f"[Encode] Latent mean/std:")
+    #     for name, latent in [
+    #         ("latent_left_seq1", latent_left_seq1),
+    #         ("latent_right_seq1", latent_right_seq1),
+    #         ("latent_left_seq2", latent_left_seq2),
+    #         ("latent_right_seq2", latent_right_seq2),
+    #     ]:
+    #         print(f"  {name}: mean={latent.mean().item():.6f}, std={latent.std().item():.6f}")
 
     # --- Check sequence lengths and reorder if necessary ---
     len1 = latent_left_seq1.shape[0]
