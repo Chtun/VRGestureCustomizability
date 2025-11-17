@@ -169,7 +169,7 @@ async def websocket_endpoint(websocket: WebSocket):
             buffer_right_wrist.append(right_wrist_frame)
 
             # Start comparing when enough frames are buffered
-            min_buffer_length = 20
+            min_buffer_length = 5
             if len(buffer_left_hands) >= min_buffer_length:
                 seq_left_hands = torch.stack(list(buffer_left_hands), dim=0)
                 seq_right_hands = torch.stack(list(buffer_right_hands), dim=0)
@@ -485,7 +485,7 @@ async def remove_gesture(gesture_label: str):
             "message": f"Internal Error: {str(e)}"
         }
 
-@app.delete("/gesture/")
+@app.delete("/remove_all_gestures")
 async def remove_all_gestures():
     global num_templates
     try:
@@ -493,6 +493,8 @@ async def remove_all_gestures():
 
         gesture_templates = {}
         num_templates = 0
+
+        print("Removed all gestures.")
         
         save_gestures_to_json(gesture_templates, cfg['paths']['gesture_template_json'])
 
@@ -502,6 +504,7 @@ async def remove_all_gestures():
         }
 
     except Exception as e:
+        print(f"[ERROR] Failed to save gestures: {e}")
         return {
             "status_code": remove_gestures_statuses["Internal Error"],
             "message": f"Internal Error: {str(e)}"

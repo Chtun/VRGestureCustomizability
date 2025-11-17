@@ -1,9 +1,8 @@
 paths:
-  data_folder: "./database/raw_data/"
+  data_folder: "../server/database/raw_data/"
   output_folder: "../output"
   input_VQVAE_model: "vqvae_hand_model.pt"
   gesture_template_json: "./database/stored_gesture_templates-Test1.json"
-  default_gesture_template_json: # "./database/default_gesture_templates.json"
   
 
 gesture_template_paths:
@@ -43,7 +42,7 @@ gesture_template_paths:
     path: "live_recordings-Chitsein-Cast Teleport 2.csv"
 
 gesture_settings:
-  BUFFER_MAX_LEN: 40
+  BUFFER_MAX_LEN: 30
   MATCH_THRESHOLD: 1.5
 
 model_params:

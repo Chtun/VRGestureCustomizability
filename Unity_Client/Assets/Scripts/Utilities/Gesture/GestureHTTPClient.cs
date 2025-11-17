@@ -91,9 +91,13 @@ public class GestureHTTPClient : MonoBehaviour
 	// ==========================================================
 	public IEnumerator RemoveAllGestures(Action<bool> onComplete = null)
 	{
-		string url = $"{baseUrl}/gesture/";
+		string url = $"{baseUrl}/remove_all_gestures";
 		using (UnityWebRequest www = UnityWebRequest.Delete(url))
 		{
+			www.downloadHandler = new DownloadHandlerBuffer();
+			www.uploadHandler = new UploadHandlerRaw(new byte[0]);
+			www.SetRequestHeader("Content-Type", "application/json");
+
 			yield return www.SendWebRequest();
 
 			if (www.result == UnityWebRequest.Result.Success)

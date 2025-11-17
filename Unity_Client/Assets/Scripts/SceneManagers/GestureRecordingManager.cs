@@ -448,18 +448,7 @@ public class GestureRecordingManager : MonoBehaviour
 
 	private void RemoveAllCustomGestures()
 	{
-		GestureInput recordedGesture;
-
-		bool successfulRecording = GestureSystemManager.instance.StopRecordingGesture(out recordedGesture);
-
-		if (successfulRecording)
-		{
-			CurrentRecordedGesture = recordedGesture;
-		}
-		else
-		{
-			Debug.LogWarning($"[{scriptName}] Stopping the recording was not successful!");
-		}
+		StartCoroutine(GestureSystemManager.instance.RemoveAllGestures());
 	}
 
 	/// <summary>
