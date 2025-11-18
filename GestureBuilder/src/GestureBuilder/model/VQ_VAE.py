@@ -162,15 +162,13 @@ class VQVAE(nn.Module):
     @torch.no_grad()
     def encode(self, x):
         """
-        Encode input x into quantized latent embeddings.
+        Encode input x into latent embeddings.
 
         Args:
             x: (batch, input_dim)
-            return_indices (bool): if True, also return VQ indices
 
         Returns:
-            z_q: (batch, latent_dim) quantized embeddings
+            z_e: (batch, latent_dim) latent embeddings
         """
         z_e = self.encoder(x)
-        z_q, _, _ = self.vq(z_e)
-        return z_q
+        return z_e

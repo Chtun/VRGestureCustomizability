@@ -42,7 +42,7 @@ def compute_frame_distance_batch(
     latent_right_B_exp = latent_right_B.unsqueeze(0)
     latent_dist_left = torch.norm(latent_left_A_exp - latent_left_B_exp, dim=-1) / LATENT_MAX
     latent_dist_right = torch.norm(latent_right_A_exp - latent_right_B_exp, dim=-1) / LATENT_MAX
-    latent_dist = (latent_dist_left + latent_dist_right)
+    latent_dist = (latent_dist_left + latent_dist_right) * 0.5
 
     # Wrist velocity distance: |norm(A) - norm(B)|
     left_vel_A_exp = left_wrist_vel_A.unsqueeze(1)

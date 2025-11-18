@@ -5,7 +5,7 @@ import yaml
 from GestureBuilder.utilities.naming_conventions import get_hand_joint_list
 from GestureBuilder.utilities.sequence_comparison import sequence_distance, VQVAE
 from GestureBuilder.model.hand_dataset import load_hand_tensors_from_csv  # same function used on server
-from GestureBuilder.utilities.file_operations import load_gestures_from_json
+from GestureBuilder.utilities.file_operations import load_gestures_from_json, save_gestures_to_json
 
 # === Paths ===
 
@@ -79,55 +79,4 @@ for i in range(num_gestures):
         left_seq1, right_seq1, _, _, lw1, rw1, _, _ = gesture_data[i]
         left_seq2, right_seq2, _, _, lw2, rw2, _, _ = gesture_data[j]
 
-        # print("First sequence shapes:")
-        # print(left_seq1.shape)
-        # print(right_seq1.shape)
-        # print(lw1.shape)
-        # print(rw1.shape)
-
-        # print("Second sequence shapes:")
-        # print(left_seq2.shape)
-        # print(right_seq2.shape)
-        # print(lw2.shape)
-        # print(rw2.shape)
-
-        # print("Left sequences of first and second gesture:")
-        # print(left_seq1)
-        # print(left_seq2)
-
-        # print("Right sequences of first and second gesture:")
-        # print(right_seq1)
-        # print(right_seq2)
-
-        # print("Left wrist positions of first and second gesture:")
-        # print(lw1)
-        # print(rw1)
-
-        # print("Right wrist positions of first and second gesture:")
-        # print(rw1)
-        # print(rw2)
-
-        import time
-
-        start_time = time.time()
-
-        dist = sequence_distance(
-            vqvae_model,
-            left_seq1, right_seq1,
-            lw1, rw1,
-            left_seq2, right_seq2,
-            lw2, rw2,
-            debug_statements=True,
-            visualize_metrics=True,
-            alpha_wrist=0.3
-        )
-
-        end_time = time.time()
-
-        print(f"DTW Distance between gesture {csv_names[i]} and {csv_names[j]}: {dist:.4f}")
-        # print(f"Time to process: {end_time - start_time}")
-
-        if dist >= MATCH_THRESHOLD and csv_names[i] == csv_names[j]:
-            print(f"Gestures {csv_names[i]} and {csv_names[j]} are not in match range! (distance: {dist:.4f} < threshold: {MATCH_THRESHOLD})")
-        elif dist < MATCH_THRESHOLD and csv_names[i] != csv_names[j]:
-            print(f"Gestures {csv_names[i]} and {csv_names[j]} are falsely matched! (distance: {dist:.4f} >= threshold: {MATCH_THRESHOLD})")
+        

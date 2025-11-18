@@ -136,6 +136,8 @@ Unity_VR_Template/UserSettings/
 Unity_VR_Template/Assets/XR/
 Unity_VR_Template/Temp
 
+GestureBuilder/server/database/participant_data
+
 diagnostic_output.txt
 
 # --- Unity ---
