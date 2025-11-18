@@ -27,6 +27,8 @@ public class ChallengeButton : MonoBehaviour
 
     public void PressButton()
     {
+        Debug.Log("Button has been pressed!");
+
         if (challengeActive) return;
 
         challengeActive = true;
@@ -48,5 +50,9 @@ public class ChallengeButton : MonoBehaviour
         {
             PressButton();
         }
+
+        Debug.Log("Object collided with button");
     }
+
+
 }

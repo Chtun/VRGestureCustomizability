@@ -169,7 +169,7 @@ async def websocket_endpoint(websocket: WebSocket):
             buffer_right_wrist.append(right_wrist_frame)
 
             # Start comparing when enough frames are buffered
-            min_buffer_length = 5
+            min_buffer_length = 10
             if len(buffer_left_hands) >= min_buffer_length:
                 seq_left_hands = torch.stack(list(buffer_left_hands), dim=0)
                 seq_right_hands = torch.stack(list(buffer_right_hands), dim=0)
@@ -401,7 +401,7 @@ async def add_gesture(gesture: GestureInput):
                         template["left_wrist_positions"],
                         template["right_wrist_positions"]
                     )
-                    if other_action_distance < 1.4 * MATCH_THRESHOLD:
+                    if other_action_distance < 1.2 * MATCH_THRESHOLD:
                         message = f"Error: Gesture '{gesture.label}' is not far away from another template for another action '{gesture_key}' (Distance: {other_action_distance})."
                         print(message)
 

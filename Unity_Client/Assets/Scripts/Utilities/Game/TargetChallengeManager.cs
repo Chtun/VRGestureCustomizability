@@ -17,7 +17,7 @@ public class TargetChallengeManager : MonoBehaviour
     public TextMeshProUGUI timerText;
     public ChallengeButton challengeButton;
 
-    private GameObject[] activeTargets = new GameObject[3];
+    private GameObject[] activeTargets = new GameObject[6];  // 2 of each color
     private float timer = 0f;
     private bool challengeRunning = false;
 
@@ -42,16 +42,24 @@ public class TargetChallengeManager : MonoBehaviour
         if (timerText != null)
             timerText.text = "Time: 0.00s";
 
+        // Spawn 2 red, 2 yellow, 2 blue
         SpawnTarget(redTargetPrefab, 0);
-        SpawnTarget(yellowTargetPrefab, 1);
-        SpawnTarget(blueTargetPrefab, 2);
+        SpawnTarget(redTargetPrefab, 1);
+
+        SpawnTarget(yellowTargetPrefab, 2);
+        SpawnTarget(yellowTargetPrefab, 3);
+
+        SpawnTarget(blueTargetPrefab, 4);
+        SpawnTarget(blueTargetPrefab, 5);
     }
 
     private void SpawnTarget(GameObject prefab, int index)
     {
-        if (prefab == null || spawnPoints.Length == 0) return;
+        if (prefab == null || spawnPoints.Length == 0)
+            return;
 
         Transform spawn = spawnPoints[index % spawnPoints.Length];
+
         GameObject target = Instantiate(prefab, spawn.position, spawn.rotation);
         activeTargets[index] = target;
 
@@ -70,7 +78,8 @@ public class TargetChallengeManager : MonoBehaviour
         // check if all are destroyed
         foreach (var t in activeTargets)
         {
-            if (t != null) return;
+            if (t != null)
+                return;
         }
 
         EndChallenge();
@@ -79,6 +88,7 @@ public class TargetChallengeManager : MonoBehaviour
     private void EndChallenge()
     {
         challengeRunning = false;
+
         if (timerText != null)
             timerText.text = $"Finished! Time: {timer:F2}s";
 

@@ -14,6 +14,8 @@ try:
     cfg = yaml.safe_load(config_file.read_text())
     templates = cfg.get("gesture_template_paths", []) if isinstance(cfg, dict) else []
     data_folder = Path(cfg.get("paths", Path()).get("data_folder", Path())) if isinstance(cfg, dict) else Path()
+
+    MATCH_THRESHOLD = cfg.get("gesture_settings", {}).get("MATCH_THRESHOLD", 1.5) if isinstance(cfg, dict) else 1.5
 except Exception:
     templates = []
     raise ValueError("Ur chopped")
@@ -94,10 +96,16 @@ for i in range(num_gestures):
             left_seq2, right_seq2,
             lw2, rw2,
             debug_statements=True,
-            visualize_metrics=False
+            visualize_metrics=True,
+            alpha_wrist=0.3
         )
 
         end_time = time.time()
 
         print(f"DTW Distance between gesture {csv_names[i]} and {csv_names[j]}: {dist:.4f}")
         print(f"Time to process: {end_time - start_time}")
+
+        if dist >= MATCH_THRESHOLD and csv_names[i] == csv_names[j]:
+            print(f"Gestures {csv_names[i]} and {csv_names[j]} are not in match range! (distance: {dist:.4f} < threshold: {MATCH_THRESHOLD})")
+        elif dist < MATCH_THRESHOLD and csv_names[i] != csv_names[j]:
+            print(f"Gestures {csv_names[i]} and {csv_names[j]} are falsely matched! (distance: {dist:.4f} >= threshold: {MATCH_THRESHOLD})")

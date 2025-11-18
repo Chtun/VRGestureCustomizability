@@ -8,6 +8,7 @@ TagManager:
   - Fireball
   - Lightning
   - Ice
+  - Hand
   layers:
   - Default
   - TransparentFX

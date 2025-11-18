@@ -14,7 +14,7 @@ def compute_frame_distance_batch(
     left_wrist_vel_B, right_wrist_vel_B,
     alpha_wrist: float = 0.5,
     LATENT_MAX: float = 1.0,
-    power: float = 1.0
+    power: float = 2.0
 ):
     """
     Compute pairwise frame-wise distances between two sequences of hand frames in batch.
@@ -66,7 +66,7 @@ def compute_frame_distance_batch(
 
 
     wrist_dist = mag_diff + angle_diff
-    wrist_dist = 20 * (1.0 * wrist_dist + 2.0 * (left_wrist_dist + right_wrist_dist))
+    wrist_dist = 30 * (1.0 * wrist_dist + 2.0 * (left_wrist_dist + right_wrist_dist))
 
     frame_matrix = alpha_wrist * wrist_dist + (1 - alpha_wrist) * latent_dist
     return frame_matrix
@@ -77,73 +77,96 @@ def plot_wrist_metrics(
     right_wrist_seq1: torch.Tensor,
     left_wrist_seq2: torch.Tensor,
     right_wrist_seq2: torch.Tensor,
-    dtw_path: list = None
+
+    latent_left_seq1: torch.Tensor = torch.Tensor(),
+    latent_right_seq1: torch.Tensor = torch.Tensor(),
+    latent_left_seq2: torch.Tensor = torch.Tensor(),
+    latent_right_seq2: torch.Tensor = torch.Tensor(),
+
+    dtw_path: list = None,
+    LATENT_MAX: float = 1.0
 ):
     """
-    Plot wrist metrics: velocities, wrist distances, and angles between wrists.
-    If dtw_path is provided, align seq2 to seq1 using the DTW path.
-
-    Args:
-        left_wrist_seq1, right_wrist_seq1: T1 x 3 tensors for seq1
-        left_wrist_seq2, right_wrist_seq2: T2 x 3 tensors for seq2
-        dtw_path: optional list of (i, j) index tuples from DTW alignment
+    Plot wrist metrics AND latent-space distances.
+    Matches computations used in compute_frame_distance_batch.
     """
+
     device = left_wrist_seq1.device
 
-    # Compute wrist velocities
+    # --- Slice latent vectors so they align with velocities (t=1..T-1) ---
+    latent_left_seq1 = latent_left_seq1[1:]
+    latent_right_seq1 = latent_right_seq1[1:]
+    latent_left_seq2 = latent_left_seq2[1:]
+    latent_right_seq2 = latent_right_seq2[1:]
+
+    # Wrist velocities
     vel_left_seq1 = left_wrist_seq1[1:] - left_wrist_seq1[:-1]
     vel_right_seq1 = right_wrist_seq1[1:] - right_wrist_seq1[:-1]
     vel_left_seq2 = left_wrist_seq2[1:] - left_wrist_seq2[:-1]
     vel_right_seq2 = right_wrist_seq2[1:] - right_wrist_seq2[:-1]
 
-    # Align seq2 based on DTW path if provided
+    # --- DTW Alignment ---
     if dtw_path is not None:
-        seq2_aligned_indices = torch.tensor([j for i, j in dtw_path], device=device)
-        aligned_left_seq2 = left_wrist_seq2[seq2_aligned_indices]
-        aligned_right_seq2 = right_wrist_seq2[seq2_aligned_indices]
+        seq2_indices = torch.tensor([j for i, j in dtw_path], device=device)
 
-        vel_left_seq2 = vel_left_seq2[seq2_aligned_indices]
-        vel_right_seq2 = vel_right_seq2[seq2_aligned_indices]
+        aligned_left_seq2 = left_wrist_seq2[seq2_indices]
+        aligned_right_seq2 = right_wrist_seq2[seq2_indices]
+
+        vel_left_seq2 = vel_left_seq2[seq2_indices]
+        vel_right_seq2 = vel_right_seq2[seq2_indices]
+
+        latent_left_seq2 = latent_left_seq2[seq2_indices]
+        latent_right_seq2 = latent_right_seq2[seq2_indices]
     else:
         aligned_left_seq2 = left_wrist_seq2
         aligned_right_seq2 = right_wrist_seq2
 
-    # Compute magnitudes
+    # --- Magnitudes ---
     mag_left_seq1 = torch.norm(vel_left_seq1, dim=-1)
     mag_right_seq1 = torch.norm(vel_right_seq1, dim=-1)
     mag_left_seq2 = torch.norm(vel_left_seq2, dim=-1)
     mag_right_seq2 = torch.norm(vel_right_seq2, dim=-1)
 
+    # --- Wrist distances ---
+    wrist_dist_seq1 = torch.norm(left_wrist_seq1 - right_wrist_seq1, dim=-1)
+    wrist_dist_seq2 = torch.norm(aligned_left_seq2 - aligned_right_seq2, dim=-1)
 
-    # Compute wrist distances
-    wrist_distance_seq1 = torch.norm(left_wrist_seq1 - right_wrist_seq1, dim=-1)
-    wrist_distance_seq2 = torch.norm(aligned_left_seq2 - aligned_right_seq2, dim=-1)
+    # --- Wrist angles ---
+    cos1 = F.cosine_similarity(left_wrist_seq1, right_wrist_seq1, dim=-1)
+    cos2 = F.cosine_similarity(aligned_left_seq2, aligned_right_seq2, dim=-1)
+    angle_seq1 = torch.acos(torch.clamp(cos1, -1.0, 1.0))
+    angle_seq2 = torch.acos(torch.clamp(cos2, -1.0, 1.0))
 
-    # Compute angles between left and right wrists
-    cos_angle_seq1 = F.cosine_similarity(left_wrist_seq1, right_wrist_seq1, dim=-1)
-    cos_angle_seq2 = F.cosine_similarity(aligned_left_seq2, aligned_right_seq2, dim=-1)
-    angle_seq1 = torch.acos(torch.clamp(cos_angle_seq1, -1.0, 1.0))
-    angle_seq2 = torch.acos(torch.clamp(cos_angle_seq2, -1.0, 1.0))
+    # --- Latent distances (left vs left and right vs right) ---
+    latent_left_dist = torch.norm(latent_left_seq1 - latent_left_seq2, dim=-1) / LATENT_MAX
+    latent_right_dist = torch.norm(latent_right_seq1 - latent_right_seq2, dim=-1) / LATENT_MAX
 
-    # Plot metrics
-    plt.figure(figsize=(12, 6))
-    plt.plot(mag_left_seq1.cpu(), label='Left seq1 magnitude', marker='o')
-    plt.plot(mag_right_seq1.cpu(), label='Right seq1 magnitude', marker='o')
-    plt.plot(mag_left_seq2.cpu(), label='Left seq2 magnitude', marker='x')
-    plt.plot(mag_right_seq2.cpu(), label='Right seq2 magnitude', marker='x')
+    # Plotting
+    plt.figure(figsize=(14, 7))
 
-    plt.plot(wrist_distance_seq1.cpu(), label='Seq1 wrist distance', linestyle='--')
-    plt.plot(wrist_distance_seq2.cpu(), label='Seq2 wrist distance', linestyle='--')
+    # Velocities
+    plt.plot(mag_left_seq1.cpu(), label='Left seq1 vel mag')
+    plt.plot(mag_right_seq1.cpu(), label='Right seq1 vel mag')
+    plt.plot(mag_left_seq2.cpu(), label='Left seq2 vel mag (aligned)')
+    plt.plot(mag_right_seq2.cpu(), label='Right seq2 vel mag (aligned)')
 
-    plt.plot(angle_seq1.cpu(), label='Seq1 angle (left-right)', linestyle=':')
-    plt.plot(angle_seq2.cpu(), label='Seq2 angle (left-right)', linestyle=':')
+    # Wrist distances / angles
+    plt.plot(wrist_dist_seq1.cpu(), '--', label='Seq1 wrist distance')
+    plt.plot(wrist_dist_seq2.cpu(), '--', label='Seq2 wrist distance (aligned)')
+    plt.plot(angle_seq1.cpu(), ':', label='Seq1 wrist angle')
+    plt.plot(angle_seq2.cpu(), ':', label='Seq2 wrist angle (aligned)')
+
+    # Latent distances
+    plt.plot(latent_left_dist.cpu(), label='Latent left distance', linewidth=3, alpha=0.85)
+    plt.plot(latent_right_dist.cpu(), label='Latent right distance', linewidth=3, alpha=0.85)
 
     plt.xlabel('Frame')
     plt.ylabel('Value')
-    plt.title('Seq1 vs Seq2 Wrist Metrics')
+    plt.title('Seq1 vs Seq2 Wrist Metrics + Latent Distances')
     plt.legend()
     plt.grid(True)
     plt.show()
+
 
 
 def dtw_subsequence_full_alignment(
@@ -220,7 +243,7 @@ def dtw_subsequence_full_alignment(
     D[0, 0] = 0.0
 
     backtrack = torch.zeros((T1_vel + 1, T2_vel + 1), dtype=torch.int, device=device)
-    penalty = 2.5
+    penalty = 2.0
 
     costs = torch.empty(3, device=device)
 
@@ -291,6 +314,10 @@ def dtw_subsequence_full_alignment(
             left_wrist_seq2=left_wrist_seq2,
             right_wrist_seq1=right_wrist_seq1,
             right_wrist_seq2=right_wrist_seq2,
+            latent_left_seq1=latent_left_seq1,
+            latent_right_seq1=latent_right_seq1,
+            latent_left_seq2=latent_left_seq2,
+            latent_right_seq2=latent_right_seq2,
             dtw_path=path
         )
     
@@ -305,7 +332,7 @@ def dtw_subsequence_full_alignment(
         return float(1 / (1 + np.exp(-x)))
 
     seq_length_penalty = 1.0 * sigmoid((5 - seq1_length))
-    dtw_dist_norm += seq_length_penalty
+    dtw_dist_norm += seq_length_penalty 
 
     return dtw_dist_norm, best_start
 

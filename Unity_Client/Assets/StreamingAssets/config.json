@@ -1,6 +1,7 @@
 {
 	"host": "127.0.0.1",
 	"port": "8000",
+	"participant": "Syed",
 	"defaultGestures": {
 		"Cast Fireball": "CastFireball",
 		"Cast Ice": "CastIce",

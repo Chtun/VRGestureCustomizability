@@ -2,6 +2,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -29,6 +30,9 @@ public class GestureSystemManager : MonoBehaviour
 
 
 	private string currentRecordedGestureKey;
+
+	private string loggingActionsPath;
+	private bool isLoggingActions = false;
 
 	void Awake()
 	{
@@ -77,7 +81,15 @@ public class GestureSystemManager : MonoBehaviour
 		// If recording data, start a coroutine that waits for tracking before recording
 		if (jointDataGather != null && recordJointData)
 			StartCoroutine(jointDataGather.WaitForHandsThenRecord());
-	}
+
+		isLoggingActions = false;
+
+        Config config = Config.LoadConfig();
+        loggingActionsPath = Path.Combine(Application.persistentDataPath, $"{config.GetTaskLoggingName()}.txt");
+
+		Debug.Log($"Logging actions path: {loggingActionsPath}");
+
+    }
 
 	void OnDestroy()
 	{
@@ -124,6 +136,12 @@ public class GestureSystemManager : MonoBehaviour
 	}
 
 	#region API
+
+	public void SetActionLogging(bool isLoggingActions)
+	{
+        this.isLoggingActions = isLoggingActions;
+		
+    }
 
 	public bool RefreshGestureList()
 	{
@@ -410,7 +428,34 @@ public class GestureSystemManager : MonoBehaviour
 				inputManager.TakeAction(actionType);
 			}
 		}
-	}
 
-	#endregion Handle Incoming Messages
+		if (isLoggingActions)
+		{
+			// Make sure directory exists
+			string directory = Path.GetDirectoryName(loggingActionsPath);
+			if (!Directory.Exists(directory))
+				Directory.CreateDirectory(directory);
+
+			// Open the file in append mode
+			using (StreamWriter writer = new StreamWriter(loggingActionsPath, append: true))
+			{
+				foreach (string key in gestureDict.Keys)
+				{
+					if (gestureDict[key].matched == true && GestureKeyToActionType.ContainsKey(key))
+					{
+						ActionType actionType = GestureKeyToActionType[key];
+						string message = $"[{Time.time:F3}] Gesture '{key}' recognized, triggering action '{actionType}'";
+
+						// Debug console
+						Debug.Log(message);
+
+						// Write to file
+						writer.WriteLine(message);
+					}
+				}
+			}
+		}
+    }
+
+        #endregion Handle Incoming Messages
 }
