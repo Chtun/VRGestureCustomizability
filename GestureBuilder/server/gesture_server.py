@@ -249,6 +249,12 @@ async def websocket_endpoint(websocket: WebSocket):
                     for future, gesture_key in zip(futures, template_keys):
                         dtw_dist = await future
 
+                        
+                        if gesture_key == "Cast Lightning":
+                            dtw_dist = 0.85 * dtw_dist
+                        elif gesture_key == "Cast Ice":
+                            dtw_dist = 0.75 * dtw_dist
+
                         # Update the lowest distance for this gesture
                         if gesture_key not in gesture_results:
                             gesture_results[gesture_key] = (dtw_dist, dtw_dist < MATCH_THRESHOLD)
@@ -423,7 +429,7 @@ async def add_gesture(gesture: GestureInput):
                         template["left_wrist_positions"],
                         template["right_wrist_positions"]
                     )
-                    if same_action_distance > 2.5 * MATCH_THRESHOLD:
+                    if same_action_distance > 1.8 * MATCH_THRESHOLD:
                         message = f"Warning: Gesture '{gesture.label}' was too far away from another template in its group (Distance: {same_action_distance})."
                         print(message)
 

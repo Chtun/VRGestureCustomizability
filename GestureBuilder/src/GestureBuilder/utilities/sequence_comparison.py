@@ -66,7 +66,7 @@ def compute_frame_distance_batch(
 
 
     wrist_dist = mag_diff + angle_diff
-    wrist_dist = 30 * (1.0 * wrist_dist + 2.0 * (left_wrist_dist + right_wrist_dist))
+    wrist_dist = 33 * (1.0 * wrist_dist + 2.0 * (left_wrist_dist + right_wrist_dist))
 
     frame_matrix = alpha_wrist * wrist_dist + (1 - alpha_wrist) * latent_dist
     return frame_matrix

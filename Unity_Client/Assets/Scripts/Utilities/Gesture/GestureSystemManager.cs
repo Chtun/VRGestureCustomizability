@@ -84,12 +84,12 @@ public class GestureSystemManager : MonoBehaviour
 
 		isLoggingActions = false;
 
-        Config config = Config.LoadConfig();
-        loggingActionsPath = Path.Combine(Application.persistentDataPath, $"{config.GetTaskLoggingName()}.txt");
+		Config config = Config.LoadConfig();
+		loggingActionsPath = Path.Combine(Application.persistentDataPath, $"{config.GetTaskLoggingName()}.txt");
 
 		Debug.Log($"Logging actions path: {loggingActionsPath}");
 
-    }
+	}
 
 	void OnDestroy()
 	{
@@ -139,10 +139,28 @@ public class GestureSystemManager : MonoBehaviour
 
 	public void SetActionLogging(bool isLoggingActions)
 	{
-        this.isLoggingActions = isLoggingActions;
-		
-    }
+		this.isLoggingActions = isLoggingActions;
+	}
 
+	public void AddToActionLog(string logMessage)
+	{
+		// Make sure directory exists
+		string directory = Path.GetDirectoryName(loggingActionsPath);
+		if (!Directory.Exists(directory))
+			Directory.CreateDirectory(directory);
+
+		// Open the file in append mode
+		using (StreamWriter writer = new StreamWriter(loggingActionsPath, append: true))
+		{
+			string finalMessage = $"[{Time.time:F3}] {logMessage}";
+
+			// Debug console
+			Debug.Log(finalMessage);
+
+			// Write to file
+			writer.WriteLine(finalMessage);
+		}
+	}
 	public bool RefreshGestureList()
 	{
 
@@ -455,7 +473,7 @@ public class GestureSystemManager : MonoBehaviour
 				}
 			}
 		}
-    }
+	}
 
-        #endregion Handle Incoming Messages
+	#endregion Handle Incoming Messages
 }
