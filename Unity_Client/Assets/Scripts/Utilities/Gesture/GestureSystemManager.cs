@@ -387,6 +387,12 @@ public class GestureSystemManager : MonoBehaviour
 	{
 		try
 		{
+			// Do not take action of the incoming gesture message if manual override is set.
+			if (inputManager.ManualOverride == true)
+			{
+				return;
+			}
+
 			var obj = JObject.Parse(json);
 
 			var resultsToken = obj["gesture_results"];

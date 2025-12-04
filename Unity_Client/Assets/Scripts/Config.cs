@@ -10,9 +10,10 @@ public class Config
 	public string host = "127.0.0.1";
 	public string port = "8000";
 	public string participant = "default_participant";
+	public bool manualOverride = false;
 
-    // Dictionary to hold default gestures
-    public Dictionary<string, ActionType> defaultGestures = new Dictionary<string, ActionType>();
+	// Dictionary to hold default gestures
+	public Dictionary<string, ActionType> defaultGestures = new Dictionary<string, ActionType>();
 
 	public string GetHTTPURL() => $"http://{host}:{port}";
 	public string GetWSURL() => $"ws://{host}:{port}/ws";
@@ -20,14 +21,20 @@ public class Config
 	public string GetTaskLoggingName()
 	{
 		return $"game_task-{participant}-action_logs";
-    }
+	}
 
-    public string GetTaskRecordingName()
+	public string GetTaskRecordingName()
 	{
 		return $"game_task-{participant}-recorded_hands";
-    }
+	}
 
-    public static Config LoadConfig()
+	public bool GetManualOverride()
+	{
+		return manualOverride;
+	}
+
+
+	public static Config LoadConfig()
 	{
 		string path = Path.Combine(Application.streamingAssetsPath, "config.json");
 

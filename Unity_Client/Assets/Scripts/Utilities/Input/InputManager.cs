@@ -11,6 +11,14 @@ public class InputManager : MonoBehaviour
 	public event System.Action OnLightningCast;
 	public event System.Action OnIceCast;
 
+	public bool ManualOverride = false;
+
+	private void Awake()
+	{
+		Config config = Config.LoadConfig();
+		ManualOverride = config.GetManualOverride();
+		Debug.Log($"Loaded Manual Override from config: (Manual Override: {ManualOverride})");
+	}
 
 	void Update()
 	{
@@ -18,29 +26,32 @@ public class InputManager : MonoBehaviour
 		// Check keyboard inputs
 		if (Keyboard.current == null) return;
 
-		if (Keyboard.current.tKey.wasPressedThisFrame)
+		if (ManualOverride)
 		{
-			OnTeleportAim?.Invoke();
-		}
+			if (Keyboard.current.digit1Key.wasPressedThisFrame)
+			{
+				OnFireballCast?.Invoke();
+			}
 
-		if (Keyboard.current.yKey.wasPressedThisFrame)
-		{
-			OnTeleportCast?.Invoke();
-		}
+			if (Keyboard.current.digit2Key.wasPressedThisFrame)
+			{
+				OnLightningCast?.Invoke();
+			}
 
-		if (Keyboard.current.fKey.wasPressedThisFrame)
-		{
-			OnFireballCast?.Invoke();
-		}
+			if (Keyboard.current.digit3Key.wasPressedThisFrame)
+			{
+				OnIceCast?.Invoke();
+			}
 
-		if (Keyboard.current.lKey.wasPressedThisFrame)
-        {
-            OnLightningCast?.Invoke();
-        }
+			if (Keyboard.current.digit4Key.wasPressedThisFrame)
+			{
+				OnTeleportAim?.Invoke();
+			}
 
-		if (Keyboard.current.iKey.wasPressedThisFrame)
-		{
-			OnIceCast?.Invoke();
+			if (Keyboard.current.digit5Key.wasPressedThisFrame)
+			{
+				OnTeleportCast?.Invoke();
+			}
 		}
 	}
 
@@ -91,9 +102,9 @@ public class InputManager : MonoBehaviour
 	}
 
 	public void CastLightning()
-    {
-        OnLightningCast?.Invoke();
-    }
+	{
+		OnLightningCast?.Invoke();
+	}
 
 	public void CastIce()
 	{
