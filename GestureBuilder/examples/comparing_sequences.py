@@ -118,7 +118,7 @@ for i in range(num_gestures):
             left_seq2, right_seq2,
             lw2, rw2,
             debug_statements=True,
-            visualize_metrics=False,
+            visualize_metrics=True,
         )
 
         end_time = time.time()
