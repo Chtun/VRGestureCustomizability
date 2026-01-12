@@ -1,5 +1,5 @@
 paths:
-  data_folder: "../server/database/raw_data" # "C:\\Users\\chtun\\AppData\\LocalLow\\DefaultCompany\\Unity_VR_Template"
+  data_folder: "../server/database/raw_data"
   output_folder: "../output"
   input_VQVAE_model: "vqvae_hand_model.pt"
   gesture_template_json: "../server/database/stored_gesture_templates-Participant5.json"
