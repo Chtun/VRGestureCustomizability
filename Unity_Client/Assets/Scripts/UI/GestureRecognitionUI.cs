@@ -13,7 +13,7 @@ public class GestureRecognitionUI : MonoBehaviour
 	[SerializeField] private float cooldownDuration = 1f; // seconds
 
 	private bool isUIInitialized = false;
-	public bool IsUIInitialized => isUIInitialized;
+	[SerializeField] public bool IsUIInitialized => isUIInitialized;
 
 	// Internal dictionary mapping gesture keys to prefab instances
 	private Dictionary<string, GestureUIItem> gestureUIItems = new Dictionary<string, GestureUIItem>();

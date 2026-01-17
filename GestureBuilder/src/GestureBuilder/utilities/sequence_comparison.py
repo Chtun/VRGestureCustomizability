@@ -5,6 +5,74 @@ import numpy as np
 
 from ..model.VQ_VAE import VQVAE
 
+# TODO: Remove this function once angle information incorporation has been validated!
+
+# def compute_frame_distance_batch(
+#     latent_left_A, latent_right_A,
+#     latent_left_B, latent_right_B,
+#     left_wrist_pos_A, right_wrist_pos_A,
+#     left_wrist_pos_B, right_wrist_pos_B,
+#     left_wrist_vel_A, right_wrist_vel_A,
+#     left_wrist_vel_B, right_wrist_vel_B,
+#     alpha_wrist: float = 0.5,
+#     LATENT_MAX: float = 1.0,
+#     power: float = 2.0
+# ):
+#     """
+#     Compute pairwise frame-wise distances between two sequences of hand frames in batch.
+#     Matches exactly the behavior of compute_frame_distance (single-frame version).
+
+#     Velocities are T-1, positions are T.
+
+#     Returns:
+#         frame_matrix: (T1-1, T2-1)
+#     """
+#     # Slice positions to match velocities
+#     left_wrist_pos_A = left_wrist_pos_A[1:]
+#     right_wrist_pos_A = right_wrist_pos_A[1:]
+#     left_wrist_pos_B = left_wrist_pos_B[1:]
+#     right_wrist_pos_B = right_wrist_pos_B[1:]
+#     latent_left_A = latent_left_A[1:]
+#     latent_right_A = latent_right_A[1:]
+#     latent_left_B = latent_left_B[1:]
+#     latent_right_B = latent_right_B[1:]
+
+#     # Latent distance
+#     latent_left_A_exp = latent_left_A.unsqueeze(1)
+#     latent_left_B_exp = latent_left_B.unsqueeze(0)
+#     latent_right_A_exp = latent_right_A.unsqueeze(1)
+#     latent_right_B_exp = latent_right_B.unsqueeze(0)
+#     latent_dist_left = torch.norm(latent_left_A_exp - latent_left_B_exp, dim=-1) / LATENT_MAX
+#     latent_dist_right = torch.norm(latent_right_A_exp - latent_right_B_exp, dim=-1) / LATENT_MAX
+#     latent_dist = (latent_dist_left + latent_dist_right) * 0.5
+
+#     # Wrist velocity distance: |norm(A) - norm(B)|
+#     left_vel_A_exp = left_wrist_vel_A.unsqueeze(1)
+#     left_vel_B_exp = left_wrist_vel_B.unsqueeze(0)
+#     right_vel_A_exp = right_wrist_vel_A.unsqueeze(1)
+#     right_vel_B_exp = right_wrist_vel_B.unsqueeze(0)
+#     left_wrist_dist = torch.abs(torch.norm(left_vel_A_exp, dim=-1) - torch.norm(left_vel_B_exp, dim=-1))
+#     right_wrist_dist = torch.abs(torch.norm(right_vel_A_exp, dim=-1) - torch.norm(right_vel_B_exp, dim=-1))
+
+#     # Wrist position distances: |norm(left-right)_A - norm(left-right)_B|
+#     wrist_dist_A = torch.norm(left_wrist_pos_A - right_wrist_pos_A, dim=-1)  # (T1-1)
+#     wrist_dist_B = torch.norm(left_wrist_pos_B - right_wrist_pos_B, dim=-1)  # (T2-1)
+#     mag_diff = torch.abs(wrist_dist_A.unsqueeze(1) - wrist_dist_B.unsqueeze(0)) ** power
+
+#     # Wrist angles: |angle_A - angle_B|
+#     cos_angle_A = F.cosine_similarity(left_wrist_pos_A, right_wrist_pos_A, dim=-1)  # (T1-1)
+#     cos_angle_B = F.cosine_similarity(left_wrist_pos_B, right_wrist_pos_B, dim=-1)  # (T2-1)
+#     angle_A = torch.acos(torch.clamp(cos_angle_A, -1.0, 1.0))
+#     angle_B = torch.acos(torch.clamp(cos_angle_B, -1.0, 1.0))
+#     angle_diff = torch.abs(angle_A.unsqueeze(1) - angle_B.unsqueeze(0)) ** power
+
+
+#     wrist_dist = mag_diff + angle_diff
+#     wrist_dist = 33 * (1.0 * wrist_dist + 2.0 * (left_wrist_dist + right_wrist_dist))
+
+#     frame_matrix = alpha_wrist * wrist_dist + (1 - alpha_wrist) * latent_dist
+#     return frame_matrix
+
 def compute_frame_distance_batch(
     latent_left_A, latent_right_A,
     latent_left_B, latent_right_B,
@@ -13,64 +81,62 @@ def compute_frame_distance_batch(
     left_wrist_vel_A, right_wrist_vel_A,
     left_wrist_vel_B, right_wrist_vel_B,
     alpha_wrist: float = 0.5,
-    LATENT_MAX: float = 1.0,
-    power: float = 2.0
+    alpha_cos_sim: float = 0.5,
+    LATENT_MAX: float = 6.0
 ):
-    """
-    Compute pairwise frame-wise distances between two sequences of hand frames in batch.
-    Matches exactly the behavior of compute_frame_distance (single-frame version).
-
-    Velocities are T-1, positions are T.
-
-    Returns:
-        frame_matrix: (T1-1, T2-1)
-    """
     # Slice positions to match velocities
     left_wrist_pos_A = left_wrist_pos_A[1:]
     right_wrist_pos_A = right_wrist_pos_A[1:]
     left_wrist_pos_B = left_wrist_pos_B[1:]
     right_wrist_pos_B = right_wrist_pos_B[1:]
+
     latent_left_A = latent_left_A[1:]
     latent_right_A = latent_right_A[1:]
     latent_left_B = latent_left_B[1:]
     latent_right_B = latent_right_B[1:]
-
+    
     # Latent distance
-    latent_left_A_exp = latent_left_A.unsqueeze(1)
-    latent_left_B_exp = latent_left_B.unsqueeze(0)
-    latent_right_A_exp = latent_right_A.unsqueeze(1)
-    latent_right_B_exp = latent_right_B.unsqueeze(0)
-    latent_dist_left = torch.norm(latent_left_A_exp - latent_left_B_exp, dim=-1) / LATENT_MAX
-    latent_dist_right = torch.norm(latent_right_A_exp - latent_right_B_exp, dim=-1) / LATENT_MAX
-    latent_dist = (latent_dist_left + latent_dist_right) * 0.5
+    latent_dist_left = torch.norm(latent_left_A.unsqueeze(1) - latent_left_B.unsqueeze(0), dim=-1) / LATENT_MAX
+    latent_dist_right = torch.norm(latent_right_A.unsqueeze(1) - latent_right_B.unsqueeze(0), dim=-1) / LATENT_MAX
+    latent_dist = (latent_dist_left + latent_dist_right) / 2.0
 
-    # Wrist velocity distance: |norm(A) - norm(B)|
-    left_vel_A_exp = left_wrist_vel_A.unsqueeze(1)
-    left_vel_B_exp = left_wrist_vel_B.unsqueeze(0)
-    right_vel_A_exp = right_wrist_vel_A.unsqueeze(1)
-    right_vel_B_exp = right_wrist_vel_B.unsqueeze(0)
-    left_wrist_dist = torch.abs(torch.norm(left_vel_A_exp, dim=-1) - torch.norm(left_vel_B_exp, dim=-1))
-    right_wrist_dist = torch.abs(torch.norm(right_vel_A_exp, dim=-1) - torch.norm(right_vel_B_exp, dim=-1))
+    # Compute the velocity and angle weights for each wrist.
+    norm_left_A = torch.norm(left_wrist_vel_A, dim=-1, keepdim=True)    # [N, 1]
+    norm_left_B = torch.norm(left_wrist_vel_B, dim=-1, keepdim=True).T  # [1, M]
+    norm_right_A = torch.norm(right_wrist_vel_A, dim=-1, keepdim=True)
+    norm_right_B = torch.norm(right_wrist_vel_B, dim=-1, keepdim=True).T
+
+    # Calculate Dot Product for Cosine Similarity
+    dot_left = torch.matmul(left_wrist_vel_A, left_wrist_vel_B.T)
+    dot_right = torch.matmul(right_wrist_vel_A, right_wrist_vel_B.T)
+    eps = 1e-8
+    cos_sim_left = dot_left / (norm_left_A * norm_left_B + eps)
+    cos_sim_right = dot_right / (norm_right_A * norm_right_B + eps)
+
+    # Velocity Magnitude Distance
+    left_wrist_vel_dist = torch.abs(norm_left_A - norm_left_B)
+    right_wrist_vel_dist = torch.abs(norm_right_A - norm_right_B)
+
+    # 5. Weighted Angular Distance
+    # Weighting by average velocity to scale the direction error
+    avg_mag_left = (norm_left_A + norm_left_B) / 2.0
+    avg_mag_right = (norm_right_A + norm_right_B) / 2.0
+
+    weighted_cos_dist = ( ((1.0 - cos_sim_left) * avg_mag_left) + 
+                        ((1.0 - cos_sim_right) * avg_mag_right) ) * 5.0
 
     # Wrist position distances: |norm(left-right)_A - norm(left-right)_B|
-    wrist_dist_A = torch.norm(left_wrist_pos_A - right_wrist_pos_A, dim=-1)  # (T1-1)
-    wrist_dist_B = torch.norm(left_wrist_pos_B - right_wrist_pos_B, dim=-1)  # (T2-1)
-    mag_diff = torch.abs(wrist_dist_A.unsqueeze(1) - wrist_dist_B.unsqueeze(0)) ** power
+    wrist_dist_A = torch.norm(left_wrist_pos_A - right_wrist_pos_A, dim=-1)
+    wrist_dist_B = torch.norm(left_wrist_pos_B - right_wrist_pos_B, dim=-1)
+    wrist_dist = torch.abs(wrist_dist_A.unsqueeze(1) - wrist_dist_B.unsqueeze(0))
 
-    # Wrist angles: |angle_A - angle_B|
-    cos_angle_A = F.cosine_similarity(left_wrist_pos_A, right_wrist_pos_A, dim=-1)  # (T1-1)
-    cos_angle_B = F.cosine_similarity(left_wrist_pos_B, right_wrist_pos_B, dim=-1)  # (T2-1)
-    angle_A = torch.acos(torch.clamp(cos_angle_A, -1.0, 1.0))
-    angle_B = torch.acos(torch.clamp(cos_angle_B, -1.0, 1.0))
-    angle_diff = torch.abs(angle_A.unsqueeze(1) - angle_B.unsqueeze(0)) ** power
+    # Combine everything
+    wrist_dist = (20 * (
+        (1 - alpha_cos_sim) * 2 * (wrist_dist + left_wrist_vel_dist + right_wrist_vel_dist) +
+        alpha_cos_sim * weighted_cos_dist
+        ))
 
-
-    wrist_dist = mag_diff + angle_diff
-    wrist_dist = 33 * (1.0 * wrist_dist + 2.0 * (left_wrist_dist + right_wrist_dist))
-
-    frame_matrix = alpha_wrist * wrist_dist + (1 - alpha_wrist) * latent_dist
-    return frame_matrix
-
+    return alpha_wrist * wrist_dist + (1 - alpha_wrist) * latent_dist
 
 def plot_wrist_metrics(
     left_wrist_seq1: torch.Tensor,
@@ -84,11 +150,11 @@ def plot_wrist_metrics(
     latent_right_seq2: torch.Tensor = torch.Tensor(),
 
     dtw_path: list = None,
-    LATENT_MAX: float = 1.0
+    LATENT_MAX: float = 6.0
 ):
     """
     Plot wrist metrics AND latent-space distances.
-    Matches computations used in compute_frame_distance_batch.
+    Includes cross-sequence cosine similarity (Left1 vs Left2 and Right1 vs Right2).
     """
 
     device = left_wrist_seq1.device
@@ -107,8 +173,11 @@ def plot_wrist_metrics(
 
     # --- DTW Alignment ---
     if dtw_path is not None:
+        # Map indices from DTW path
+        # seq1_indices = [i for i, j in dtw_path]
         seq2_indices = torch.tensor([j for i, j in dtw_path], device=device)
 
+        # Align all Seq2 data to Seq1 timeline based on path
         aligned_left_seq2 = left_wrist_seq2[seq2_indices]
         aligned_right_seq2 = right_wrist_seq2[seq2_indices]
 
@@ -122,49 +191,67 @@ def plot_wrist_metrics(
         aligned_right_seq2 = right_wrist_seq2
 
     # --- Magnitudes ---
-    mag_left_seq1 = torch.norm(vel_left_seq1, dim=-1)
-    mag_right_seq1 = torch.norm(vel_right_seq1, dim=-1)
-    mag_left_seq2 = torch.norm(vel_left_seq2, dim=-1)
-    mag_right_seq2 = torch.norm(vel_right_seq2, dim=-1)
+    mag_left_seq1 = torch.norm(vel_left_seq1, dim=-1) * 20
+    mag_right_seq1 = torch.norm(vel_right_seq1, dim=-1) * 20
+    mag_left_seq2 = torch.norm(vel_left_seq2, dim=-1) * 20
+    mag_right_seq2 = torch.norm(vel_right_seq2, dim=-1) * 20
 
-    # --- Wrist distances ---
-    wrist_dist_seq1 = torch.norm(left_wrist_seq1 - right_wrist_seq1, dim=-1)
-    wrist_dist_seq2 = torch.norm(aligned_left_seq2 - aligned_right_seq2, dim=-1)
+    # --- Wrist distances (Internal: Left to Right within same seq) ---
+    wrist_dist_seq1 = torch.norm(left_wrist_seq1 - right_wrist_seq1, dim=-1) * 20
+    wrist_dist_seq2 = torch.norm(aligned_left_seq2 - aligned_right_seq2, dim=-1) * 20
 
-    # --- Wrist angles ---
-    cos1 = F.cosine_similarity(left_wrist_seq1, right_wrist_seq1, dim=-1)
-    cos2 = F.cosine_similarity(aligned_left_seq2, aligned_right_seq2, dim=-1)
-    angle_seq1 = torch.acos(torch.clamp(cos1, -1.0, 1.0))
-    angle_seq2 = torch.acos(torch.clamp(cos2, -1.0, 1.0))
+    # --- Cross-Sequence Cosine Similarity ---
+    min_len = min(vel_left_seq1.shape[0], vel_left_seq2.shape[0])
+    
+# Compute Cosine Similarity first
+    cos_l = F.cosine_similarity(
+        vel_left_seq1[:min_len], 
+        vel_left_seq2[:min_len], 
+        dim=-1
+    )
+    cos_r = F.cosine_similarity(
+        vel_right_seq1[:min_len], 
+        vel_right_seq2[:min_len], 
+        dim=-1
+    )
+
+    # Convert to Distance: 0.0 (identical direction) to 2.0 (opposite direction)
+    left_avg_mag = (torch.norm(vel_left_seq1[:min_len], dim=-1) + torch.norm(vel_left_seq2[:min_len], dim=-1)) / 2
+    right_avg_mag = (torch.norm(vel_right_seq1[:min_len], dim=-1) + torch.norm(vel_right_seq2[:min_len], dim=-1)) / 2
+    cross_dist_left = (1.0 - cos_l) * 50 * left_avg_mag
+    cross_dist_right = (1.0 - cos_r) * 50 * right_avg_mag
 
     # --- Latent distances (left vs left and right vs right) ---
     latent_left_dist = torch.norm(latent_left_seq1 - latent_left_seq2, dim=-1) / LATENT_MAX
     latent_right_dist = torch.norm(latent_right_seq1 - latent_right_seq2, dim=-1) / LATENT_MAX
 
     # Plotting
-    plt.figure(figsize=(14, 7))
+    plt.figure(figsize=(14, 9))
 
     # Velocities
-    plt.plot(mag_left_seq1.cpu(), label='Left seq1 vel mag')
-    plt.plot(mag_right_seq1.cpu(), label='Right seq1 vel mag')
-    plt.plot(mag_left_seq2.cpu(), label='Left seq2 vel mag (aligned)')
-    plt.plot(mag_right_seq2.cpu(), label='Right seq2 vel mag (aligned)')
+    plt.plot(mag_left_seq1.cpu(), '--', label='Left seq1 vel mag', color='green')
+    plt.plot(mag_left_seq2.cpu(), label='Left seq2 vel mag (aligned)', color='green')
+    plt.plot(mag_right_seq1.cpu(), '--', label='Right seq1 vel mag', color='black')
+    plt.plot(mag_right_seq2.cpu(), label='Right seq2 vel mag (aligned)', color='black')
 
-    # Wrist distances / angles
-    plt.plot(wrist_dist_seq1.cpu(), '--', label='Seq1 wrist distance')
-    plt.plot(wrist_dist_seq2.cpu(), '--', label='Seq2 wrist distance (aligned)')
-    plt.plot(angle_seq1.cpu(), ':', label='Seq1 wrist angle')
-    plt.plot(angle_seq2.cpu(), ':', label='Seq2 wrist angle (aligned)')
+    # Wrist distances
+    plt.plot(wrist_dist_seq1.cpu(), '--', label='Seq1 wrist distance', color='red')
+    plt.plot(wrist_dist_seq2.cpu(), label='Seq2 wrist distance (aligned)', color='red')
 
     # Latent distances
     plt.plot(latent_left_dist.cpu(), label='Latent left distance', linewidth=3, alpha=0.85)
     plt.plot(latent_right_dist.cpu(), label='Latent right distance', linewidth=3, alpha=0.85)
 
-    plt.xlabel('Frame')
-    plt.ylabel('Value')
-    plt.title('Seq1 vs Seq2 Wrist Metrics + Latent Distances')
-    plt.legend()
+    # Cross-Sequence Cosine Similarities
+    plt.plot(cross_dist_left.cpu(), '-.', label='Cross-Seq CosSim Distance Left', color='cyan')
+    plt.plot(cross_dist_right.cpu(), '-.', label='Cross-Seq CosSim Distance Right', color='magenta')
+
+    plt.xlabel('Frame (Aligned to Seq1)')
+    plt.ylabel('Value / Similarity')
+    plt.title('Seq1 vs Seq2 Wrist Metrics, Latent Distances, and Cross-Similarity')
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     plt.grid(True)
+    plt.tight_layout()
     plt.show()
 
 

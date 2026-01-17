@@ -220,6 +220,7 @@ public class JointDataGather : MonoBehaviour
 	public Pose GetRootPose(bool isRightHand)
 	{
 		Pose rootPose;
+		// Get the raw world-space pose from the hand.
 		if (isRightHand)
 		{
 			this.rightHand.GetRootPose(out rootPose);
@@ -229,7 +230,21 @@ public class JointDataGather : MonoBehaviour
 			this.leftHand.GetRootPose(out rootPose);
 		}
 
-		return rootPose;
+		// Get the Reference (HMD/Camera).
+		Transform head = Camera.main.transform;
+
+		// Create a "Flat" rotation based on where the player is facing.
+		Quaternion bodyRotation = Quaternion.Euler(0, head.eulerAngles.y, 0);
+
+		Debug.Log($"Body rotation has Y angle of: {bodyRotation.y}");
+
+		// Transform Position: (WorldPos - HeadPos) brought into Body Space.
+		Vector3 localPos = Quaternion.Inverse(bodyRotation) * (rootPose.position - head.position);
+
+		// Transform Rotation: WorldRot brought into Body Space.
+		Quaternion localRot = Quaternion.Inverse(bodyRotation) * rootPose.rotation;
+
+		return new Pose(localPos, localRot);
 	}
 
 
@@ -354,10 +369,8 @@ public class JointDataGather : MonoBehaviour
 		Dictionary<HandJointId, Pose> currentRightJointPoses = GetJointData(rightHand);
 
 		// Collect root poses
-		Pose currentRightRootPose;
-		Pose currentLeftRootPose;
-		rightHand.GetRootPose(out currentRightRootPose);
-		leftHand.GetRootPose(out currentLeftRootPose);
+		Pose currentRightRootPose = this.GetRootPose(isRightHand: true);
+		Pose currentLeftRootPose = this.GetRootPose(isRightHand: false);
 
 		// Write to CSV
 		WriteData(currentLeftJointPoses, currentRightJointPoses, currentLeftRootPose, currentRightRootPose, outputPath);
