@@ -39,15 +39,12 @@ if gesture_template_json:
     for gesture_label in stored_data:
         print(f"Loaded gesture label: {gesture_label}")
 
-        
-
         for hand_data in stored_data[gesture_label]:
             data = []
             csv_names.append(gesture_label)
             for key in hand_data:
                 data.append(hand_data[key])
             
-            print(len(data))
             gesture_data.append(data)
 
 

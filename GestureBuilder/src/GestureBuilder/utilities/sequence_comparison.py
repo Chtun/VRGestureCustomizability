@@ -150,7 +150,11 @@ def plot_wrist_metrics(
     latent_right_seq2: torch.Tensor = torch.Tensor(),
 
     dtw_path: list = None,
-    LATENT_MAX: float = 6.0
+
+    alpha_wrist: float = 0.5,
+    alpha_cos_sim: float = 0.5,
+    LATENT_MAX: float = 6.0,
+    visualize_diff_not_raw: bool = True,
 ):
     """
     Plot wrist metrics AND latent-space distances.
@@ -189,21 +193,24 @@ def plot_wrist_metrics(
     else:
         aligned_left_seq2 = left_wrist_seq2
         aligned_right_seq2 = right_wrist_seq2
+    
+    # --- Cross-Sequence length comparison ---
+    min_len = min(vel_left_seq1.shape[0], vel_left_seq2.shape[0])
 
     # --- Magnitudes ---
     mag_left_seq1 = torch.norm(vel_left_seq1, dim=-1) * 20
     mag_right_seq1 = torch.norm(vel_right_seq1, dim=-1) * 20
     mag_left_seq2 = torch.norm(vel_left_seq2, dim=-1) * 20
     mag_right_seq2 = torch.norm(vel_right_seq2, dim=-1) * 20
+    left_mag_diff = torch.abs(mag_left_seq1[:min_len] - mag_left_seq2[:min_len]) * 2 * (1 - alpha_cos_sim) * alpha_wrist
+    right_mag_diff = torch.abs(mag_right_seq1[:min_len] - mag_right_seq2[:min_len]) * 2 * (1 - alpha_cos_sim) * alpha_wrist
 
     # --- Wrist distances (Internal: Left to Right within same seq) ---
     wrist_dist_seq1 = torch.norm(left_wrist_seq1 - right_wrist_seq1, dim=-1) * 20
     wrist_dist_seq2 = torch.norm(aligned_left_seq2 - aligned_right_seq2, dim=-1) * 20
-
-    # --- Cross-Sequence Cosine Similarity ---
-    min_len = min(vel_left_seq1.shape[0], vel_left_seq2.shape[0])
+    wrist_dist = torch.abs(wrist_dist_seq1[:min_len] - wrist_dist_seq2[:min_len]) * 2 * (1 - alpha_cos_sim) * alpha_wrist
     
-# Compute Cosine Similarity first
+    # Compute Cosine Similarity first
     cos_l = F.cosine_similarity(
         vel_left_seq1[:min_len], 
         vel_left_seq2[:min_len], 
@@ -216,31 +223,38 @@ def plot_wrist_metrics(
     )
 
     # Convert to Distance: 0.0 (identical direction) to 2.0 (opposite direction)
-    left_avg_mag = (torch.norm(vel_left_seq1[:min_len], dim=-1) + torch.norm(vel_left_seq2[:min_len], dim=-1)) / 2
-    right_avg_mag = (torch.norm(vel_right_seq1[:min_len], dim=-1) + torch.norm(vel_right_seq2[:min_len], dim=-1)) / 2
-    cross_dist_left = (1.0 - cos_l) * 50 * left_avg_mag
-    cross_dist_right = (1.0 - cos_r) * 50 * right_avg_mag
+    left_avg_mag = (torch.norm(vel_left_seq1[:min_len], dim=-1) + torch.norm(vel_left_seq2[:min_len], dim=-1)) / 2 * 100
+    right_avg_mag = (torch.norm(vel_right_seq1[:min_len], dim=-1) + torch.norm(vel_right_seq2[:min_len], dim=-1)) / 2 * 100
+    cross_dist_left = (1.0 - cos_l) * left_avg_mag * alpha_cos_sim
+    cross_dist_right = (1.0 - cos_r) * right_avg_mag * alpha_cos_sim
 
     # --- Latent distances (left vs left and right vs right) ---
-    latent_left_dist = torch.norm(latent_left_seq1 - latent_left_seq2, dim=-1) / LATENT_MAX
-    latent_right_dist = torch.norm(latent_right_seq1 - latent_right_seq2, dim=-1) / LATENT_MAX
+    latent_left_dist = torch.norm(latent_left_seq1 - latent_left_seq2, dim=-1) / (LATENT_MAX * 2) * (1 - alpha_wrist)
+    latent_right_dist = torch.norm(latent_right_seq1 - latent_right_seq2, dim=-1) / (LATENT_MAX * 2) * (1 - alpha_wrist)
 
     # Plotting
     plt.figure(figsize=(14, 9))
 
     # Velocities
-    plt.plot(mag_left_seq1.cpu(), '--', label='Left seq1 vel mag', color='green')
-    plt.plot(mag_left_seq2.cpu(), label='Left seq2 vel mag (aligned)', color='green')
-    plt.plot(mag_right_seq1.cpu(), '--', label='Right seq1 vel mag', color='black')
-    plt.plot(mag_right_seq2.cpu(), label='Right seq2 vel mag (aligned)', color='black')
+    if not visualize_diff_not_raw:
+        plt.plot(mag_left_seq1.cpu(), '--', label='Left seq1 vel mag', color='green')
+        plt.plot(mag_left_seq2.cpu(), label='Left seq2 vel mag (aligned)', color='green')
+        plt.plot(mag_right_seq1.cpu(), '--', label='Right seq1 vel mag', color='black')
+        plt.plot(mag_right_seq2.cpu(), label='Right seq2 vel mag (aligned)', color='black')
+    else:
+        plt.plot(left_mag_diff.cpu(), '-.', label='Cross-Seq Left Vel Mag Diff', color='green')
+        plt.plot(right_mag_diff.cpu(), '-.', label='Cross-Seq Right Vel Mag Diff', color='black')
 
     # Wrist distances
-    plt.plot(wrist_dist_seq1.cpu(), '--', label='Seq1 wrist distance', color='red')
-    plt.plot(wrist_dist_seq2.cpu(), label='Seq2 wrist distance (aligned)', color='red')
+    if not visualize_diff_not_raw:
+        plt.plot(wrist_dist_seq1.cpu(), '--', label='Seq1 wrist distance', color='red')
+        plt.plot(wrist_dist_seq2.cpu(), label='Seq2 wrist distance (aligned)', color='red')
+    else:
+        plt.plot(wrist_dist.cpu(), '-.', label='Cross-Seq Wrist Distance', color='red')
 
     # Latent distances
-    plt.plot(latent_left_dist.cpu(), label='Latent left distance', linewidth=3, alpha=0.85)
-    plt.plot(latent_right_dist.cpu(), label='Latent right distance', linewidth=3, alpha=0.85)
+    plt.plot(latent_left_dist.cpu(), '-.', label='Latent left distance', linewidth=3, alpha=0.85)
+    plt.plot(latent_right_dist.cpu(), '-.', label='Latent right distance', linewidth=3, alpha=0.85)
 
     # Cross-Sequence Cosine Similarities
     plt.plot(cross_dist_left.cpu(), '-.', label='Cross-Seq CosSim Distance Left', color='cyan')
@@ -421,7 +435,7 @@ def dtw_subsequence_full_alignment(
     seq_length_penalty = 1.0 * sigmoid((5 - seq1_length))
     dtw_dist_norm += seq_length_penalty 
 
-    return dtw_dist_norm, best_start
+    return dtw_dist_norm, best_start, path
 
 
 
@@ -439,6 +453,7 @@ def sequence_distance(
     alpha_wrist: float = 0.3,
     debug_statements: bool = False,
     visualize_metrics: bool = False,
+    return_path: bool = False,
 ):
     """
     Compute a DTW-based distance between two gesture sequences using both hands and wrist positions.
@@ -544,7 +559,7 @@ def sequence_distance(
     
 
     # DTW
-    dtw_distance, index_start = dtw_subsequence_full_alignment(
+    dtw_distance, index_start, path = dtw_subsequence_full_alignment(
         latent_left_seq1, latent_right_seq1,
         latent_left_seq2, latent_right_seq2,
         left_wrist_seq1, right_wrist_seq1,
@@ -558,4 +573,7 @@ def sequence_distance(
     if debug_statements:
         print(f"[Final] DTW distance = {dtw_distance:.6f}, best start index in seq2 = {index_start}")
     
-    return dtw_distance
+    if return_path:
+        return dtw_distance, path
+    else:
+        return dtw_distance
