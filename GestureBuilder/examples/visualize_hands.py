@@ -1,123 +1,149 @@
 import pandas as pd
 import plotly.graph_objects as go
 from pathlib import Path
+import yaml
 
-# List of file subnames
-file_subnames = ["TEST-Cast Fireball 1", "TEST-Cast Fireball 2", "TEST-Cast Fireball 3"]
+# --- CONFIGURATION ---
+FPS = 10  # Adjust this to match your recording frame rate
+# ---------------------
 
-# Path to output folder
+try:
+    config_file = Path(__file__).resolve().parents[1] / "server" / "config" / "config.yaml"
+    cfg = yaml.safe_load(config_file.read_text())
+    templates = cfg.get("gesture_template_paths", []) if isinstance(cfg, dict) else []
+    data_folder = Path(cfg.get("paths", Path()).get("data_folder", Path())) if isinstance(cfg, dict) else Path()
+    gesture_template_json = cfg.get("paths", {}).get("gesture_template_json", "") if isinstance(cfg, dict) else ""
+    MATCH_THRESHOLD = cfg.get("gesture_settings", {}).get("MATCH_THRESHOLD", 1.5) if isinstance(cfg, dict) else 1.5
+except Exception:
+    templates = []
+    # Simplified error for local testing
+    print("Warning: Config not found, using empty templates.")
+
+csv_names = [t.get("name", Path(t.get("path", "")).stem) for t in templates]
+csv_paths = [data_folder / t.get("path") for t in templates]
+
 output_folder = Path("..\\output")
 output_file = output_folder / "hand_animation-Cast Fireball-multiple.html"
-
-# Colors for each file
-colors_left = ["blue", "green", "purple"] # "green", "purple", "grey"
-colors_right = ["red", "orange", "pink"] # "orange", "pink", "black"
-
-# Scale factor
+colors_left = ["blue", "green", "purple"]
+colors_right = ["red", "orange", "pink"]
 scale_factor = 5.0
-
-# Prefixes
 left_prefix = "L_"
 right_prefix = "R_"
 
-# Store frames for all files
 all_left_frames = []
 all_right_frames = []
 
-# Load and process each CSV
-for subname in file_subnames:
-    csv_path = f"..\\server\\database\\raw_data\\live_recordings-{subname}.csv"
-    df = pd.read_csv(csv_path)
+for csv_path in csv_paths:
+    if not csv_path.exists(): continue
+    df = pd.read_csv(csv_path, skip_blank_lines=False)
 
     def extract_joints(row, prefix):
+        # Check if any of the root position columns for this hand are NaN
+        # If the root is missing, we consider the hand/row invalid
+        if pd.isna(row[f"{prefix}Root_posX"]):
+            return None
+
         joints = []
         root_x = row[f"{prefix}Root_posX"] * scale_factor
         root_y = row[f"{prefix}Root_posY"] * scale_factor
         root_z = row[f"{prefix}Root_posZ"] * scale_factor
-
         joints.append((root_x, root_y, root_z))
 
         for col in df.columns:
             if col.startswith(prefix) and col.endswith("_posX") and "Root" not in col:
                 joint_name = col[len(prefix):-5]
+                # If any specific joint in the hand is NaN, return None to signal "empty"
+                if pd.isna(row[f"{prefix}{joint_name}_posX"]):
+                    return None
+                
                 x = (row[f"{prefix}{joint_name}_posX"]) * scale_factor + root_x
                 y = (row[f"{prefix}{joint_name}_posY"]) * scale_factor + root_y
                 z = (row[f"{prefix}{joint_name}_posZ"]) * scale_factor + root_z
                 joints.append((x, y, z))
         return joints
 
-    left_frames = [extract_joints(df.iloc[i], left_prefix) for i in range(len(df))]
-    right_frames = [extract_joints(df.iloc[i], right_prefix) for i in range(len(df))]
+    current_file_left = []
+    current_file_right = []
 
-    all_left_frames.append(left_frames)
-    all_right_frames.append(right_frames)
+    for i in range(len(df)):
+        left_data = extract_joints(df.iloc[i], left_prefix)
+        right_data = extract_joints(df.iloc[i], right_prefix)
 
-# Get max number of frames across all files
+        # If either hand is missing data in this row, stop here
+        if left_data is None or right_data is None:
+            print(f"Empty data detected at row {i} in {csv_path.name}. Cutting file short.")
+            break
+        
+        current_file_left.append(left_data)
+        current_file_right.append(right_data)
+
+    all_left_frames.append(current_file_left)
+    all_right_frames.append(current_file_right)
+
+if not all_left_frames:
+    raise ValueError("No data found to visualize.")
+
 max_frames = max(len(frames) for frames in all_left_frames)
 
 def separate_xyz(joint_list):
-    if len(joint_list) == 0:
-        return [], [], []
+    if len(joint_list) == 0: return [], [], []
     x, y, z = zip(*joint_list)
     return list(x), list(y), list(z)
 
-# Configuration for the "ghost" points
-trail_length = 10  # How many future frames to show
+trail_length = 10 
 trail_opacity = 0.2
 
-# Initial data (must match the structure of frame_data)
 data = []
 for f_idx in range(len(all_left_frames)):
-    # Current Points Traces (Indices 0, 1 for file 1; 4, 5 for file 2, etc.)
-    data.append(go.Scatter3d(x=[], y=[], z=[], mode='markers', 
-                             marker=dict(color=colors_left[f_idx], size=4), name=f'L Current {f_idx+1}'))
-    data.append(go.Scatter3d(x=[], y=[], z=[], mode='markers', 
-                             marker=dict(color=colors_right[f_idx], size=4), name=f'R Current {f_idx+1}'))
-    
-    # Future/Trail Traces (Indices 2, 3 for file 1; 6, 7 for file 2, etc.)
-    data.append(go.Scatter3d(x=[], y=[], z=[], mode='markers', 
-                             marker=dict(color=colors_left[f_idx], size=2, opacity=trail_opacity), name=f'L Trail {f_idx+1}'))
-    data.append(go.Scatter3d(x=[], y=[], z=[], mode='markers', 
-                             marker=dict(color=colors_right[f_idx], size=2, opacity=trail_opacity), name=f'R Trail {f_idx+1}'))
+    data.append(go.Scatter3d(x=[], y=[], z=[], mode='markers', marker=dict(color=colors_left[f_idx], size=4), name=f'L Current {f_idx+1}'))
+    data.append(go.Scatter3d(x=[], y=[], z=[], mode='markers', marker=dict(color=colors_right[f_idx], size=4), name=f'R Current {f_idx+1}'))
+    data.append(go.Scatter3d(x=[], y=[], z=[], mode='markers', marker=dict(color=colors_left[f_idx], size=2, opacity=trail_opacity), name=f'L Trail {f_idx+1}'))
+    data.append(go.Scatter3d(x=[], y=[], z=[], mode='markers', marker=dict(color=colors_right[f_idx], size=2, opacity=trail_opacity), name=f'R Trail {f_idx+1}'))
 
 fig = go.Figure(data=data)
 
-# Animation frames
+# --- ANIMATION FRAMES ---
 frames = []
 for i in range(max_frames):
     frame_data = []
-    for f_idx, (left_frames, right_frames) in enumerate(zip(all_left_frames, all_right_frames)):
-        # --- 1. Current Frame Points ---
-        curr_idx = min(i, len(left_frames) - 1)
-        lx, ly, lz = separate_xyz(left_frames[curr_idx])
-        rx, ry, rz = separate_xyz(right_frames[curr_idx])
+    # Calculate time based on frame index
+    current_time = i / FPS 
+    
+    for f_idx, (left_f_list, right_f_list) in enumerate(zip(all_left_frames, all_right_frames)):
+        curr_idx = min(i, len(left_f_list) - 1)
+        lx, ly, lz = separate_xyz(left_f_list[curr_idx])
+        rx, ry, rz = separate_xyz(right_f_list[curr_idx])
         
-        frame_data.append(go.Scatter3d(x=lx, y=ly, z=lz, mode='markers',
-                                       marker=dict(color=colors_left[f_idx], size=4)))
-        frame_data.append(go.Scatter3d(x=rx, y=ry, z=rz, mode='markers',
-                                       marker=dict(color=colors_right[f_idx], size=4)))
+        frame_data.append(go.Scatter3d(x=lx, y=ly, z=lz, mode='markers', marker=dict(color=colors_left[f_idx], size=4)))
+        frame_data.append(go.Scatter3d(x=rx, y=ry, z=rz, mode='markers', marker=dict(color=colors_right[f_idx], size=4)))
 
-        # --- 2. Future Trail Points ---
-        # Get next N frames, flatten them into a single list of coordinates
-        future_idx_end = min(i + trail_length, len(left_frames))
-        
-        # Collect all points from i+1 to i+trail_length
-        l_trail_pts = [pt for f in left_frames[i+1 : future_idx_end] for pt in f]
-        r_trail_pts = [pt for f in right_frames[i+1 : future_idx_end] for pt in f]
+        future_idx_end = min(i + trail_length, len(left_f_list))
+        l_trail_pts = [pt for f in left_f_list[i+1 : future_idx_end] for pt in f]
+        r_trail_pts = [pt for f in right_f_list[i+1 : future_idx_end] for pt in f]
         
         tx, ty, tz = separate_xyz(l_trail_pts)
         rtx, rty, rtz = separate_xyz(r_trail_pts)
 
-        frame_data.append(go.Scatter3d(x=tx, y=ty, z=tz, mode='markers',
-                                       marker=dict(color=colors_left[f_idx], size=2, opacity=trail_opacity)))
-        frame_data.append(go.Scatter3d(x=rtx, y=rty, z=rtz, mode='markers',
-                                       marker=dict(color=colors_right[f_idx], size=2, opacity=trail_opacity)))
+        frame_data.append(go.Scatter3d(x=tx, y=ty, z=tz, mode='markers', marker=dict(color=colors_left[f_idx], size=2, opacity=trail_opacity)))
+        frame_data.append(go.Scatter3d(x=rtx, y=rty, z=rtz, mode='markers', marker=dict(color=colors_right[f_idx], size=2, opacity=trail_opacity)))
 
-    frames.append(go.Frame(data=frame_data, name=str(i)))
+    # Add frame with layout update for the timestamp annotation
+    frames.append(go.Frame(
+        data=frame_data, 
+        name=str(i),
+        layout=go.Layout(annotations=[dict(
+            text=f"Time: {current_time:.2f}s (Frame {i})",
+            showarrow=False,
+            xref="paper", yref="paper",
+            x=0.05, y=0.95,
+            font=dict(size=18, color="black"),
+            bgcolor="white", opacity=0.8
+        )])
+    ))
 
 fig.frames = frames
 
-# Layout
+# --- LAYOUT ---
 fig.update_layout(
     scene=dict(
         xaxis=dict(range=[-5, 5]),
@@ -125,6 +151,15 @@ fig.update_layout(
         zaxis=dict(range=[-5, 5]),
         aspectmode='cube'
     ),
+    # Add an initial annotation so it's visible before clicking 'Play'
+    annotations=[dict(
+        text=f"Time: 0.00s (Frame 0)",
+        showarrow=False,
+        xref="paper", yref="paper",
+        x=0.05, y=0.95,
+        font=dict(size=18, color="black"),
+        bgcolor="white", opacity=0.8
+    )],
     updatemenus=[dict(
         type="buttons",
         buttons=[dict(label="Play",
@@ -135,6 +170,6 @@ fig.update_layout(
     )]
 )
 
-# Save interactive HTML
+output_folder.mkdir(parents=True, exist_ok=True)
 fig.write_html(output_file, include_plotlyjs='cdn')
 print(f"Saved animation to {output_file}")
