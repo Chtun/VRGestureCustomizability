@@ -116,12 +116,13 @@ for i in range(num_gestures):
             lw2, rw2,
             debug_statements=True,
             visualize_metrics=False,
+            return_path=False
         )
 
         end_time = time.time()
 
         print(f"DTW Distance between gesture {csv_names[i]} and {csv_names[j]}: {dist:.4f}")
-        # print(f"Time to process: {end_time - start_time}")
+        print(f"Time to process: {end_time - start_time}")
 
         if dist >= MATCH_THRESHOLD and csv_names[i] == csv_names[j]:
             print(f"Gestures {csv_names[i]} and {csv_names[j]} are not in match range! (distance: {dist:.4f} < threshold: {MATCH_THRESHOLD})")

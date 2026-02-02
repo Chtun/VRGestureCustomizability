@@ -98,6 +98,8 @@ if not cfg['gesture_template_paths'] is None:
 
         default_gesture_templates[gesture_key].append(gesture_dict)
 
+    save_gestures_to_json(default_gesture_templates, cfg['paths']['gesture_template_json'])
+
 elif not cfg['paths']['default_gesture_template_json'] is None:
     default_gesture_templates = load_gestures_from_json(cfg['paths']['default_gesture_template_json'])
 
@@ -151,6 +153,9 @@ async def websocket_endpoint(websocket: WebSocket):
         else:
             print(gesture_templates.keys())
 
+        check_every_x_frames = 3
+        curr_frame_count = 0
+
         while True:
             message = await websocket.receive_text()
             data = json.loads(message)
@@ -167,6 +172,12 @@ async def websocket_endpoint(websocket: WebSocket):
             buffer_right_hands.append(right_hands_frame)
             buffer_left_wrist.append(left_wrist_frame)
             buffer_right_wrist.append(right_wrist_frame)
+
+            if curr_frame_count < check_every_x_frames:
+                curr_frame_count += 1
+                continue
+            else:
+                curr_frame_count = 0
 
             # Start comparing when enough frames are buffered
             min_buffer_length = 10
@@ -191,6 +202,8 @@ async def websocket_endpoint(websocket: WebSocket):
 
                     futures = []
                     template_keys = []
+
+                    start_time = time.time()
 
                     if use_default_system:
                         # Submit sequence_distance calls for all default templates
@@ -274,6 +287,10 @@ async def websocket_endpoint(websocket: WebSocket):
                         buffer_right_hands.clear()
                         buffer_left_wrist.clear()
                         buffer_right_wrist.clear()
+
+                    end_time = time.time()
+
+                    print(f"Time to process: {end_time - start_time}")
 
                     # Send the full gesture results dictionary to the frontend
                     await websocket.send_json({

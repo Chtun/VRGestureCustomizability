@@ -2,7 +2,7 @@ paths:
   data_folder: "../server/database/raw_data"
   output_folder: "../output"
   input_VQVAE_model: "vqvae_hand_model.pt"
-  gesture_template_json: # "../server/database/stored_gesture_templates-TEST.json"
+  gesture_template_json: "../server/database/stored_gesture_templates-TEST.json"
   
 
 gesture_template_paths:
@@ -10,40 +10,40 @@ gesture_template_paths:
     path: "live_recordings-TEST-Cast Fireball 1.csv"
   - name: "Cast Fireball"
     path: "live_recordings-TEST-Cast Fireball 2.csv"
-  - name: "Cast Fireball"
-    path: "live_recordings-TEST-Cast Fireball 3.csv"
+  # - name: "Cast Fireball"
+  #   path: "live_recordings-TEST-Cast Fireball 3.csv"
 
   - name: "Cast Ice"
     path: "live_recordings-TEST-Cast Ice 1.csv"
   - name: "Cast Ice"
     path: "live_recordings-TEST-Cast Ice 2.csv"
-  - name: "Cast Ice"
-    path: "live_recordings-TEST-Cast Ice 3.csv"
+  # - name: "Cast Ice"
+  #   path: "live_recordings-TEST-Cast Ice 3.csv"
 
   - name: "Cast Lightning"
     path: "live_recordings-TEST-Cast Lightning 1.csv"
   - name: "Cast Lightning"
     path: "live_recordings-TEST-Cast Lightning 2.csv"
-  - name: "Cast Lightning"
-    path: "live_recordings-TEST-Cast Lightning 3.csv"
+  # - name: "Cast Lightning"
+  #   path: "live_recordings-TEST-Cast Lightning 3.csv"
 
   - name: "Show Teleport"
     path: "live_recordings-TEST-Show Teleport 1.csv"
   - name: "Show Teleport"
     path: "live_recordings-TEST-Show Teleport 2.csv"
-  - name: "Show Teleport"
-    path: "live_recordings-TEST-Show Teleport 3.csv"
+  # - name: "Show Teleport"
+  #   path: "live_recordings-TEST-Show Teleport 3.csv"
     
   - name: "Cast Teleport"
     path: "live_recordings-TEST-Cast Teleport 1.csv"
   - name: "Cast Teleport"
     path: "live_recordings-TEST-Cast Teleport 2.csv"
-  - name: "Cast Teleport"
-    path: "live_recordings-TEST-Cast Teleport 3.csv"
+  # - name: "Cast Teleport"
+  #   path: "live_recordings-TEST-Cast Teleport 3.csv"
 
 gesture_settings:
   BUFFER_MAX_LEN: 30
-  MATCH_THRESHOLD: 1.5
+  MATCH_THRESHOLD: 1.6
 
 model_params:
   latent_dim: 8
