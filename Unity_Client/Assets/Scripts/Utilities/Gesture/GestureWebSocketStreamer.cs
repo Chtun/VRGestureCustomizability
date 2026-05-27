@@ -22,25 +22,75 @@ public class GestureWebSocketStreamer : MonoBehaviour
 	[SerializeField] private bool isStreaming = false;
 	private CancellationTokenSource cts;
 
-	// ✅ Add an Action to forward received messages
+	// Add an Action to forward received messages
 	public Action<string> OnGestureDataReceived;
 
-	private void Start()
+	private void Awake()
 	{
 		Config config = Config.LoadConfig();
 		serverUrl = config.GetWSURL();
 		Debug.Log($"Loaded server URL from config: {serverUrl}");
-		StartCoroutine(WaitForTrackingThenConnect());
 	}
 
-	private IEnumerator WaitForTrackingThenConnect()
+	public void Connect(bool useDefaultSystem)
+	{
+		// Already connected? Do nothing
+		if (ws != null && ws.State == WebSocketState.Open)
+			return;
+
+		if (isStreaming)
+		{
+			Debug.LogWarning("WebSocket already streaming, connect ignored.");
+			return;
+		}
+
+		StartCoroutine(WaitForTrackingThenConnect(useDefaultSystem));
+	}
+
+
+	private IEnumerator WaitForTrackingThenConnect(bool useDefaultSystem)
 	{
 		while (!IsBothHandsTracked())
 			yield return null;
 
 		Debug.Log("Hands tracked — connecting to gesture WebSocket server...");
-		ConnectWebSocket();
+		ConnectWebSocket(useDefaultSystem);
 	}
+
+	public void Disconnect()
+	{
+		if (!isStreaming && (ws == null || ws.State != WebSocketState.Open))
+			return;
+
+		Debug.Log("Disconnecting from WebSocket...");
+
+		isStreaming = false;
+		cts?.Cancel();
+
+		StartCoroutine(DisconnectCoroutine());
+	}
+
+	private IEnumerator DisconnectCoroutine()
+	{
+		if (ws != null)
+		{
+			if (ws.State == WebSocketState.Open)
+			{
+				var task = ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Client disconnecting", CancellationToken.None);
+				while (!task.IsCompleted)
+					yield return null;
+
+				Debug.Log("WebSocket disconnected.");
+			}
+
+			ws.Dispose();
+			ws = null;
+		}
+
+		cts?.Dispose();
+		cts = null;
+	}
+
 
 	private bool IsBothHandsTracked()
 	{
@@ -49,7 +99,7 @@ public class GestureWebSocketStreamer : MonoBehaviour
 			   jointDataGather.GetJointData(true) != null;
 	}
 
-	private async void ConnectWebSocket()
+	private async void ConnectWebSocket(bool useDefaultSystem)
 	{
 		ws = new ClientWebSocket();
 		cts = new CancellationTokenSource();
@@ -60,6 +110,18 @@ public class GestureWebSocketStreamer : MonoBehaviour
 			await ws.ConnectAsync(uri, cts.Token);
 			Debug.Log("Connected to gesture WebSocket server.");
 			isStreaming = true;
+
+
+			// Send initial system info
+			var initMessage = new WebsocketInitMessage
+			{
+				type = "init",
+				useDefaultSystem = useDefaultSystem
+			};
+			string jsonInit = JsonUtility.ToJson(initMessage);
+			var bytes = Encoding.UTF8.GetBytes(jsonInit);
+			await ws.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, cts.Token);
+
 			StartCoroutine(SendJointDataLoop());
 			ReceiveLoop(); // Start listening for messages
 		}
@@ -111,10 +173,10 @@ public class GestureWebSocketStreamer : MonoBehaviour
 				{
 					string message = Encoding.UTF8.GetString(buffer, 0, result.Count);
 
-					// ✅ Print the message
+					// Print the message
 					Debug.Log($"Received from server: {message}");
 
-					// ✅ Pass it along via Action if assigned
+					// Pass it along via Action if assigned
 					OnGestureDataReceived?.Invoke(message);
 				}
 			}
@@ -190,23 +252,8 @@ public class GestureWebSocketStreamer : MonoBehaviour
 	}
 
 
-	private async void OnDestroy()
+	private void OnDestroy()
 	{
-		isStreaming = false;
-		if (ws != null)
-		{
-			try
-			{
-				if (ws.State == WebSocketState.Open)
-					await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
-			}
-			catch { }
-			ws.Dispose();
-			ws = null;
-		}
-
-		cts?.Cancel();
-		cts?.Dispose();
-		cts = null;
+		Disconnect();
 	}
 }

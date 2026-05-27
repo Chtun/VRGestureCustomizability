@@ -1,4 +1,13 @@
 {
 	"host": "127.0.0.1",
-	"port": "8000"
+	"port": "8000",
+	"participant": "TEST",
+	"manualOverride":  false,
+	"defaultGestures": {
+		"Cast Fireball": "CastFireball",
+		"Cast Ice": "CastIce",
+		"Cast Lightning": "CastLightning",
+		"Show Teleport": "ShowTeleport",
+		"Cast Teleport": "CastTeleport"
+	}
 }

@@ -5,6 +5,10 @@ TagManager:
   serializedVersion: 3
   tags:
   - Anchor
+  - Fireball
+  - Lightning
+  - Ice
+  - Hand
   layers:
   - Default
   - TransparentFX

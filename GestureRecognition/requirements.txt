@@ -1,0 +1,22 @@
+# ML
+torch
+scikit-learn
+
+# Data
+pandas
+numpy
+
+# Server
+uvicorn[standard]
+fastapi
+
+# Typing
+pydantic
+
+# File I/O
+pathlib
+PyYAML
+
+# Visualization
+plotly
+matplotlib
