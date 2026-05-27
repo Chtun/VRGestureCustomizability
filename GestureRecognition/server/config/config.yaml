@@ -1,3 +1,7 @@
+server_settings:
+  host: "127.0.0.1"
+  port: 8000
+
 paths:
   data_folder: "../server/database/raw_data"
   output_folder: "../output"
